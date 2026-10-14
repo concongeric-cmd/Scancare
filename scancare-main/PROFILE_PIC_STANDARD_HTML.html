@@ -1,0 +1,111 @@
+<!
+     PROFILE PICTURE COMPONENT - STANDARD CSS VERSION
+     Ready to Copy & Paste into Your Dashboard (No Tailwind Required)
+     ============================================================================
+     
+     Instructions:
+     1. Copy the CSS styles from PROFILE_PIC_STANDARD_CSS.css into your <style>
+     2. Copy this HTML into your dashboard body
+     3. Add the JavaScript from PROFILE_PIC_JAVASCRIPT.js before </body>
+     4. Make sure Font Awesome icons are loaded
+     5. Update upload_profile.php backend endpoint
+     
+     ============================================================================ 
+
+<div class="profile-pic-component">
+    <div class="profile-pic-card">
+        
+        <!
+        <h2 class="profile-pic-title">
+            <i class="fa-solid fa-image"></i>
+            Profile Picture
+        </h2>
+        
+        <!
+        <div class="profile-pic-container">
+            
+            <!
+            <div 
+                class="profile-picture-wrapper" 
+                id="profilePictureContainer" 
+                role="button" 
+                tabindex="0" 
+                aria-label="Upload profile picture"
+                title="Click to upload profile picture"
+            >
+                <!
+                <img 
+                    id="profileImage" 
+                    src="data:image/svg+xml,%3Csvg xmlns='http:
+                    alt="Profile picture"
+                >
+                
+                <!
+                <div class="profile-pic-overlay">
+                    <div class="profile-pic-overlay-content">
+                        <div class="profile-pic-overlay-icon">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                        <p class="profile-pic-overlay-text">Change Photo</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!
+            <input 
+                type="file" 
+                id="profileUploadInput" 
+                class="profile-upload-input" 
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                aria-label="Select profile picture file"
+            >
+            
+            <!
+            <p class="profile-pic-info">
+                <i class="fa-solid fa-info-circle"></i>
+                Allowed: JPG, JPEG, PNG (Max 2MB)
+            </p>
+            
+            <!
+            <div 
+                id="validationMessage" 
+                class="profile-pic-message"
+                role="alert"
+            >
+                <i id="validationIcon" class="fa-solid"></i>
+                <span id="validationText"></span>
+            </div>
+            
+            <!
+            <div 
+                id="actionButtons" 
+                class="profile-pic-actions"
+            >
+                <!
+                <button 
+                    id="saveButton" 
+                    class="profile-pic-save-btn"
+                    aria-label="Save profile picture"
+                >
+                    <i class="fa-solid fa-check"></i>
+                    <span id="saveButtonText">Save Changes</span>
+                </button>
+                
+                <!
+                <button 
+                    id="cancelButton" 
+                    class="profile-pic-cancel-btn"
+                    aria-label="Cancel profile picture upload"
+                >
+                    <i class="fa-solid fa-times"></i>
+                    Cancel
+                </button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!
+<!
+

@@ -1,0 +1,132 @@
+/* Shared ScanCare hero design system */
+.hero-section {
+  position: relative;
+  width: 100%;
+  padding: 5rem 1.5rem;
+  background-color: #435322;
+  background-image:
+    radial-gradient(circle at 85% 50%, rgba(74, 124, 48, 0.45) 0%, rgba(67, 83, 34, 0) 65%),
+    radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px;
+  background-position: center center, 0 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.hero-animated-dots {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 66.666667%;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  animation: hero-dot-wave 8s linear infinite;
+  mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%);
+  opacity: 0.7;
+}
+
+.hero-glow {
+  position: absolute;
+  right: -80px;
+  top: -80px;
+  width: 384px;
+  height: 384px;
+  border-radius: 9999px;
+  background-color: rgba(16, 185, 129, 0.2);
+  filter: blur(48px);
+  pointer-events: none;
+}
+
+@keyframes hero-dot-wave {
+  0% { background-position: 0 0; }
+  50% { background-position: 36px -18px; }
+  100% { background-position: 0 -36px; }
+}
+
+.hero-content {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #e2e8f0;
+  margin-bottom: 24px;
+  backdrop-filter: blur(4px);
+}
+
+.hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #4ade80;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.hero-title {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  max-width: 680px;
+  margin: 0 0 16px 0;
+}
+
+.hero-subtitle {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 580px;
+  margin: 0 0 28px 0;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #ffffff;
+  color: #2e3a18;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 50px;
+  text-decoration: none;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.hero-btn:hover {
+  background-color: #f8fafc;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .hero-section { padding: 3.75rem 1rem; }
+  .hero-animated-dots { width: 100%; }
+  .hero-title { font-size: 32px; }
+  .hero-subtitle { font-size: 14px; }
+}

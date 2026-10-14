@@ -1,0 +1,217 @@
+
+
+
+1. Open phpMyAdmin in your browser: http:
+2. On the left sidebar, look for "Create new database"
+3. Type database name: scancare_db
+4. Click Create
+
+
+
+1. In phpMyAdmin, click on the "scancare_db" database (left sidebar)
+2. Click the "SQL" tab at the top
+3. Open the file: SCANCARE_DATABASE_SETUP.sql
+   - Location: C:\xampp\htdocs\itelec4\SCANCARE_DATABASE_SETUP.sql
+   - You can open it in Notepad and copy the entire contents
+4. Paste the SQL code into the phpMyAdmin SQL editor
+5. Click "Go" button at bottom right
+6. Wait for it to complete (should see "0 errors" at the top)
+
+
+
+After running the SQL:
+- You should see two tables in phpMyAdmin: "users" and "activity_logs"
+- The users table should have 3 sample records (resident, bhw, admin)
+
+
+
+Now test the authentication system:
+
+1. Go to: http:
+2. Login with one of these credentials:
+   - Email: resident@example.com
+   - Password: Test123456
+   
+   OR
+   
+   - Email: admin@example.com
+   - Password: Test123456
+
+3. You should see the dashboard
+4. Click "Log Out" button
+5. The error should be GONE
+6. You should be redirected to landing page
+
+
+
+To see if login/logout is being recorded:
+
+1. Go to phpMyAdmin
+2. Click on scancare_db database
+3. Click on "activity_logs" table
+4. You should see records with:
+   - user_id
+   - action_type (login or logout)
+   - timestamp
+   - ip_address
+
+
+
+To view the activity logs in your app:
+
+Create a file: admin_dashboard.php
+
+Add this code:
+
+```php
+<?php
+session_start();
+
+
+if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: login.php');
+    exit;
+}
+
+require_once 'db_config.php';
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #454B1B; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #454B1B; color: white; }
+        tr:hover { background: #f9f9f9; }
+        .admin-badge { background: #dc3545; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; }
+        .resident-badge { background: #17a2b8; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; }
+        .bhw-badge { background: #28a745; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Dashboard - Activity Logs</h1>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>User Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>IP Address</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $pdo = getDatabaseConnection();
+                
+                if ($pdo) {
+                    $query = "SELECT 
+                        al.log_id,
+                        al.user_id,
+                        u.email,
+                        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                        u.user_role,
+                        al.action_type,
+                        al.ip_address,
+                        al.timestamp
+                    FROM activity_logs al
+                    INNER JOIN users u ON al.user_id = u.user_id
+                    ORDER BY al.timestamp DESC
+                    LIMIT 100";
+                    
+                    $stmt = $pdo->prepare($query);
+                    $stmt->execute();
+                    
+                    while ($log = $stmt->fetch()) {
+                        $role_class = 'user-' . $log['user_role'] . '-badge';
+                        if ($log['user_role'] === 'admin') {
+                            $role_badge = '<span class="admin-badge">ADMIN</span>';
+                        } elseif ($log['user_role'] === 'bhw') {
+                            $role_badge = '<span class="bhw-badge">BHW</span>';
+                        } else {
+                            $role_badge = '<span class="resident-badge">RESIDENT</span>';
+                        }
+                        
+                        echo "<tr>
+                            <td>{$log['log_id']}</td>
+                            <td>{$log['user_name']}</td>
+                            <td>{$log['email']}</td>
+                            <td>{$role_badge}</td>
+                            <td><strong>" . strtoupper(str_replace('_', ' ', $log['action_type'])) . "</strong></td>
+                            <td><code>{$log['ip_address']}</code></td>
+                            <td>" . date('M d, Y H:i:s', strtotime($log['timestamp'])) . "</td>
+                        </tr>";
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+```
+
+Save as: C:\xampp\htdocs\itelec4\admin_dashboard.php
+
+
+
+ERROR: "Access denied for user 'root'@'localhost'"
+FIX: Your MySQL password might not be empty. Update db_config.php:
+    Change: define('DB_PASS', '');
+    To:     define('DB_PASS', 'your_password_here');
+
+ERROR: "Database scancare_db doesn't exist"
+FIX: Make sure you created the database first (Step 1)
+     Database name MUST be: scancare_db (all lowercase)
+
+ERROR: "Table users doesn't exist"
+FIX: Make sure you ran the SQL script (Step 2)
+     Click the "users" table in phpMyAdmin to verify it exists
+
+ERROR: "Undefined variable $connection"
+FIX: This is fixed now. Both logout.php and login_process.php use PDO correctly.
+
+ERROR: "Login fails with correct credentials"
+FIX: Check that you're using the right password: Test123456
+     Make sure you run the SQL script to populate test users
+
+
+
+✅ SCANCARE_DATABASE_SETUP.sql
+   - Copy entire contents and paste into phpMyAdmin SQL tab
+
+✅ db_config.php (already exists)
+   - Uses PDO for database connection
+   - No changes needed
+
+✅ login_process.php (UPDATED)
+   - Now uses PDO correctly
+   - Records login to activity_logs
+
+✅ logout.php (FIXED)
+   - Error is resolved
+   - Records logout before destroying session
+
+✅ admin_logs.php (UPDATED)
+   - Uses PDO for database queries
+   - Displays activity logs with filtering
+
+
+
+1. ✅ Follow Step 1 & 2 above (create database and import SQL)
+2. ✅ Test login/logout (Step 4)
+3. ✅ Verify activity logs (Step 5)
+4. ✅ Create admin dashboard to view logs (Step 6)
+
+You're all set! The authentication system with activity logging is now ready.
+============================================================================
+*/
+

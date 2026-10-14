@@ -1,0 +1,97 @@
+/* Shared dark-mode canvas for public ScanCare pages. */
+/* Loaded in the document head so the Home control never paints its light surface first. */
+html.dark .sc-home-button,
+body.dark-mode .sc-home-button {
+    background-color: #1a251d !important;
+    color: #dbe8d7 !important;
+    transition: none !important;
+}
+
+html.dark .sc-home-button:hover,
+body.dark-mode .sc-home-button:hover {
+    background-color: #293a2c !important;
+    color: #ffffff !important;
+}
+
+.dark-mode-grid-bg,
+.dark .bg-dark-grid,
+body.dark-mode .bg-dark-grid {
+    background-color: #0b0f0a !important;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
+    background-size: 24px 24px !important;
+}
+
+html.dark main.bg-dark-grid > section,
+html.dark main.bg-dark-grid > footer,
+body.dark-mode main.bg-dark-grid > section,
+body.dark-mode main.bg-dark-grid > footer {
+    background-color: #0b0f0a !important;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
+    background-size: 24px 24px !important;
+}
+
+html.dark main.bg-dark-grid > section h1,
+html.dark main.bg-dark-grid > section h2,
+html.dark main.bg-dark-grid > section h3,
+html.dark main.bg-dark-grid > section h4,
+body.dark-mode main.bg-dark-grid > section h1,
+body.dark-mode main.bg-dark-grid > section h2,
+body.dark-mode main.bg-dark-grid > section h3,
+body.dark-mode main.bg-dark-grid > section h4 {
+    color: #ffffff !important;
+}
+
+html.dark main.bg-dark-grid > section:first-child,
+body.dark-mode main.bg-dark-grid > section:first-child {
+    background-color: #0b0f0a !important;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
+    background-size: 24px 24px !important;
+}
+
+html.dark main.bg-dark-grid > section:first-child h1,
+html.dark main.bg-dark-grid > section:first-child h2,
+html.dark main.bg-dark-grid > section:first-child h3,
+html.dark main.bg-dark-grid > section:first-child h4,
+body.dark-mode main.bg-dark-grid > section:first-child h1,
+body.dark-mode main.bg-dark-grid > section:first-child h2,
+body.dark-mode main.bg-dark-grid > section:first-child h3,
+body.dark-mode main.bg-dark-grid > section:first-child h4 {
+    color: #ffffff !important;
+}
+
+html.dark main.bg-dark-grid > section:first-child p,
+body.dark-mode main.bg-dark-grid > section:first-child p {
+    color: #84a98c !important;
+}
+
+html.dark main.bg-dark-grid.page-grid-canvas > section h1,
+html.dark main.bg-dark-grid.page-grid-canvas > section h2,
+html.dark main.bg-dark-grid.page-grid-canvas > section h3,
+html.dark main.bg-dark-grid.page-grid-canvas > section h4,
+body.dark-mode main.bg-dark-grid.page-grid-canvas > section h1,
+body.dark-mode main.bg-dark-grid.page-grid-canvas > section h2,
+body.dark-mode main.bg-dark-grid.page-grid-canvas > section h3,
+body.dark-mode main.bg-dark-grid.page-grid-canvas > section h4 {
+    color: #ffffff !important;
+}
+
+html.dark main.bg-dark-grid > section > div > div > p,
+body.dark-mode main.bg-dark-grid > section > div > div > p {
+    color: #84a98c !important;
+}
+
+html.dark main.bg-dark-grid > section [class*="rounded-full"],
+body.dark-mode main.bg-dark-grid > section [class*="rounded-full"] {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+html.dark main.bg-dark-grid > section [class*="bg-[#454B1B]"],
+body.dark-mode main.bg-dark-grid > section [class*="bg-[#454B1B]"] {
+    color: #ffffff !important;
+}

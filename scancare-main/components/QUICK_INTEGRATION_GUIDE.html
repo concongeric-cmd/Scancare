@@ -1,0 +1,219 @@
+<!-- 
+  Alert Escalation Widget - Quick Integration Guide
+  Copy-paste this code snippet into your PHP pages to add the Alert Escalation Widget
+-->
+
+<!-- 
+  STEP 1: Add these container divs where you want the widgets to appear
+  
+  Option A: Just a status badge in header
+  Option B: Full timeline view
+  Option C: Both (recommended for dashboards)
+-->
+
+<!-- Option A: Status Badge Only -->
+<div id="alert-status-badge" class="inline-block"></div>
+
+<!-- Option B: Timeline View Only -->
+<div id="alert-escalation-timeline"></div>
+
+<!-- Option C: Both Components -->
+<div class="grid md:grid-cols-3 gap-8">
+  <div class="md:col-span-1">
+    <h3 class="font-heading font-bold text-slate-900 mb-4">Current Status</h3>
+    <div id="alert-status-badge" class="inline-block"></div>
+  </div>
+  <div class="md:col-span-2">
+    <div id="alert-escalation-timeline"></div>
+  </div>
+</div>
+
+<!-- 
+  STEP 2: Add this script BEFORE closing </body> tag
+  
+  This loads the component and initializes both widgets
+-->
+
+<script src="components/alert-escalation-widget.js"></script>
+<script>
+  // Status Badge Widget (for headers/sidebars)
+  const statusBadge = new AlertEscalationWidget({
+    containerId: 'alert-status-badge',
+    mode: 'badge',
+    activeLevel: 1, // Change this to reflect current system state
+    isInteractive: true,
+    
+    onLevelChange: async (newLevel) => {
+      // Optional: Send updated level to backend
+      try {
+        const response = await fetch('<?php echo appUrl("handle_alert_level.php"); ?>', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ level: newLevel })
+        });
+        
+        if (response.ok) {
+          console.log('Alert level updated to:', newLevel);
+          // Optional: Show success message
+        } else {
+          console.error('Failed to update alert level');
+        }
+      } catch (error) {
+        console.error('Error updating alert level:', error);
+      }
+    }
+  });
+  statusBadge.render();
+
+  // Timeline Widget (for full surveillance view)
+  const timelineWidget = new AlertEscalationWidget({
+    containerId: 'alert-escalation-timeline',
+    mode: 'timeline',
+    orientation: 'horizontal', // Use 'vertical' for mobile-first
+    activeLevel: 1,
+    isInteractive: false, // Set to true if you want level adjustment controls
+    
+    onLevelChange: (newLevel) => {
+      console.log('Timeline alert level changed to:', newLevel);
+    }
+  });
+  timelineWidget.render();
+</script>
+
+<!-- 
+  STEP 3 (OPTIONAL): Add this PHP endpoint to handle level updates
+  
+  Create a new file: handle_alert_level.php
+-->
+
+<?php
+/**
+ * handle_alert_level.php
+ * Backend endpoint for updating alert levels
+ * 
+ * POST request body: { "level": 1-4 }
+ * Returns: { "success": true, "newLevel": <number> }
+ */
+
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+try {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $newLevel = intval($input['level'] ?? 1);
+    
+    // Validate level is 1-4
+    if ($newLevel < 1 || $newLevel > 4) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Alert level must be between 1 and 4']);
+        exit;
+    }
+    
+    // Check user is authenticated
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+    
+    // Get database connection
+    require_once 'db_config.php';
+    $pdo = getDatabaseConnection();
+    
+    if (!$pdo) {
+        throw new Exception('Database connection failed');
+    }
+    
+    // Update alert level in system settings (or your custom table)
+    $stmt = $pdo->prepare("
+        UPDATE system_alert_levels 
+        SET current_level = ?, updated_at = NOW(), updated_by = ? 
+        WHERE id = 1
+    ");
+    
+    $stmt->execute([$newLevel, $_SESSION['user_id']]);
+    
+    // Log the change for audit trail
+    error_log("Alert level updated to {$newLevel} by user {$_SESSION['user_id']}");
+    
+    // Return success
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'newLevel' => $newLevel,
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => $e->getMessage()]);
+}
+?>
+
+<!-- 
+  INTEGRATION EXAMPLES
+  
+  Example 1: In Navigation Header
+  ==============================
+-->
+<header class="border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <h1>ScanCare Dashboard</h1>
+    <div id="alert-status-badge"></div>
+  </div>
+</header>
+
+<!-- 
+  Example 2: In Admin Panel
+  ==========================
+-->
+<section class="py-12 bg-gradient-to-br from-[#454B1B]/5 to-white">
+  <div class="max-w-7xl mx-auto px-6">
+    <h2 class="text-2xl font-bold text-slate-900 mb-8">System Alert Management</h2>
+    <div id="alert-escalation-timeline"></div>
+  </div>
+</section>
+
+<!-- 
+  Example 3: In Surveillance Dashboard
+  ====================================
+-->
+<div class="grid md:grid-cols-4 gap-4">
+  <div class="md:col-span-1 bg-white rounded-lg p-4 border border-slate-200">
+    <h3 class="font-bold text-slate-900 mb-4">Alert Status</h3>
+    <div id="alert-status-badge"></div>
+  </div>
+  <div class="md:col-span-3 bg-white rounded-lg p-4 border border-slate-200">
+    <h3 class="font-bold text-slate-900 mb-4">Escalation Levels</h3>
+    <div id="alert-escalation-timeline"></div>
+  </div>
+</div>
+
+<!--
+  TROUBLESHOOTING
+  ===============
+  
+  If the widget doesn't appear:
+  1. Check that the container divs exist in the HTML
+  2. Verify alert-escalation-widget.js is loaded (check Network tab in DevTools)
+  3. Confirm Tailwind CSS and Font Awesome are loaded
+  4. Check browser console (F12) for JavaScript errors
+  
+  If styling looks wrong:
+  1. Make sure Tailwind CSS is loaded: 
+     <script src="https://cdn.tailwindcss.com"></script>
+  2. Make sure Font Awesome is loaded:
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  3. Check for CSS conflicts in your custom stylesheets
+  
+  If keyboard navigation doesn't work:
+  1. Click on the widget first to focus it
+  2. Use Tab to navigate between elements
+  3. Use Arrow keys, Enter, or Space to interact
+  4. Use Escape to close popovers
+-->

@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanCare Login - Community Health System</title>
+    <link rel="stylesheet" href="https:
+    <style>
+        
+        @import url('https:
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #454B1B 0%, #667d35 100%);
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        
+        .login-container {
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 420px;
+            padding: 48px 32px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .login-logo img {
+            height: 56px;
+            width: 56px;
+            object-fit: contain;
+        }
+
+        .login-logo-text {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #1e293b;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .login-logo-text .brand-accent {
+            color: #454B1B;
+        }
+
+        .login-heading {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .login-subheading {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            background-color: #f8fafc;
+        }
+
+        .form-input:focus {
+            outline: none;
+            background-color: white;
+            border-color: #454B1B;
+            box-shadow: 0 0 0 3px rgba(69, 75, 27, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #cbd5e1;
+        }
+
+        
+        .login-btn {
+            padding: 14px 20px;
+            background-color: #454B1B;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 12px;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .login-btn:hover {
+            background-color: #35400a;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(69, 75, 27, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        
+        .error-message {
+            display: none;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        
+        .login-demo-info {
+            background-color: #f0fdf4;
+            border: 1px solid #dcfce7;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #166534;
+        }
+
+        .login-demo-info strong {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .login-demo-info code {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        
+        .admin-dashboard {
+            display: none;
+            width: 100%;
+        }
+
+        .admin-dashboard.active {
+            display: block;
+        }
+
+        
+        nav.sc-navbar {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(69, 75, 27, 0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            z-index: 50;
+        }
+
+        .sc-nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 80px;
+            width: 100%;
+        }
+
+        .sc-logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: inherit;
+            flex-shrink: 0;
+        }
+
+        .sc-logo-img {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .sc-logo-text {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #1e293b;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .sc-logo-text .brand-accent {
+            color: #454B1B;
+        }
+
+        .nav-user-section-desktop {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-left: 1px solid #e2e8f0;
+            padding-left: 24px;
+            margin-left: auto;
+        }
+
+        .nav-user-name {
+            color: #454B1B;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .nav-logout-btn {
+            background-color: #454B1B;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .nav-logout-btn:hover {
+            background-color: #35400a;
+        }
+
+        
+        .admin-main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px;
+            background-color: #F8FAF6;
+        }
+
+        .admin-header {
+            margin-bottom: 32px;
+        }
+
+        .admin-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .admin-subtitle {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        
+        .activity-log {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .activity-log-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .activity-log-header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background-color: rgba(69, 75, 27, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #454B1B;
+        }
+
+        .activity-log-header-text h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .activity-log-header-text p {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .timeline-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 20px;
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item:not(:last-child) {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #454B1B;
+            margin-top: 6px;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 4px rgba(69, 75, 27, 0.1);
+        }
+
+        .timeline-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .timeline-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.5;
+        }
+
+        .timeline-description {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+            margin-top: 4px;
+        }
+
+        .timeline-badge {
+            display: inline-block;
+            background-color: rgba(69, 75, 27, 0.1);
+            color: #454B1B;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            width: fit-content;
+        }
+
+        
+        @media (max-width: 768px) {
+            .login-container {
+                padding: 32px 24px;
+            }
+
+            .admin-main {
+                padding: 20px 16px;
+            }
+
+            .admin-title {
+                font-size: 24px;
+            }
+
+            .timeline-item {
+                grid-template-columns: auto 1fr;
+                gap: 16px;
+            }
+
+            .sc-nav-container {
+                padding: 0 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!
+         LOGIN PAGE (INITIAL VIEW)
+         ═══════════════════════════════════════════════════════ 
+    <div class="login-container" id="loginContainer">
+        
+        <!
+        <div class="login-header">
+            <div class="login-logo">
+                <img src="images/SClogo.png" alt="ScanCare Logo">
+                <span class="login-logo-text">
+                    Scan<span class="brand-accent">Care</span>
+                </span>
+            </div>
+            <h1 class="login-heading">Welcome Back</h1>
+            <p class="login-subheading">Barangay Gutad Community Health System</p>
+        </div>
+
+        <!
+        <div class="error-message" id="errorMessage"></div>
+
+        <!
+        <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+            
+            <!
+            <div class="form-group">
+                <label class="form-label">Username or Email</label>
+                <input 
+                    type="text" 
+                    class="form-input" 
+                    id="userInput" 
+                    placeholder="Enter your username or email"
+                    required
+                    autofocus
+                >
+            </div>
+
+            <!
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    class="form-input" 
+                    id="passwordInput" 
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
+
+            <!
+            <button type="submit" class="login-btn" id="loginBtn">
+                Sign In
+            </button>
+
+        </form>
+
+        <!
+        <div class="login-demo-info">
+            <strong>Demo Credentials:</strong>
+            <p>
+                Username: <code>Any text</code><br>
+                Password: <code>1234</code>
+            </p>
+            <p style="margin-top: 8px; font-size: 11px;">
+                ℹ️ For testing: Use any username you prefer. The password must be exactly <code>1234</code>.
+            </p>
+        </div>
+
+    </div>
+
+    <!
+         ADMIN TRANSACTION LOG DASHBOARD
+         ═══════════════════════════════════════════════════════ 
+    <div class="admin-dashboard" id="adminDashboard">
+        
+        <!
+        <nav class="sc-navbar">
+            <div class="sc-nav-container">
+                <a href="landing.php" class="sc-logo-section" aria-label="ScanCare Home">
+                    <img src="images/SClogo.png" alt="ScanCare Logo" class="sc-logo-img">
+                    <span class="sc-logo-text">
+                        Scan<span class="brand-accent">Care</span>
+                    </span>
+                </a>
+
+                <div class="nav-user-section-desktop">
+                    <div class="nav-user-name" id="navUserName">Administrator</div>
+                    <button class="nav-logout-btn" id="logoutBtn" onclick="handleLogout()">Log Out</button>
+                </div>
+            </div>
+        </nav>
+
+        <!
+        <div class="admin-main">
+            
+            <!
+            <div class="admin-header">
+                <h1 class="admin-title">Admin Transaction Monitor</h1>
+                <p class="admin-subtitle">System-wide Activity Log & Platform Events</p>
+            </div>
+
+            <!
+            <div class="activity-log">
+                <div class="activity-log-header">
+                    <div class="activity-log-header-icon">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div class="activity-log-header-text">
+                        <h3>Platform Activity Log</h3>
+                        <p>Chronological record of all system events and user transactions</p>
+                    </div>
+                </div>
+
+                <!
+                <div class="timeline-container" id="timelineContainer">
+                    <!
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!
+         VANILLA JAVASCRIPT - LOGIN & TRANSACTION LOG LOGIC
+         ═══════════════════════════════════════════════════════ 
+    <script>
+        
+        
+        
+        
+        const mockTransactionLog = [
+            {
+                timestamp: '2026-06-04 14:32:18',
+                title: 'BHW Worker Scanned Patient QR Code',
+                description: 'Maria Santos completed resident health screening via mobile QR scanner',
+                badge: 'HEALTH SCREENING',
+                type: 'scan'
+            },
+            {
+                timestamp: '2026-06-04 14:28:45',
+                title: 'Medicine Inventory Updated',
+                description: 'Paracetamol batch received - 500 units distributed to BHW stations',
+                badge: 'INVENTORY',
+                type: 'inventory'
+            },
+            {
+                timestamp: '2026-06-04 14:15:22',
+                title: 'Patient Self-Registration Completed',
+                description: 'Juan Cruz successfully registered through mobile portal (Age: 34)',
+                badge: 'REGISTRATION',
+                type: 'registration'
+            },
+            {
+                timestamp: '2026-06-04 13:58:40',
+                title: 'Consultation Appointment Scheduled',
+                description: 'Rosa Mercado booked appointment with Dr. Reyes for June 8, 2026',
+                badge: 'APPOINTMENT',
+                type: 'appointment'
+            },
+            {
+                timestamp: '2026-06-04 13:42:19',
+                title: 'Barangay Health Worker Logged In',
+                description: 'Carmen Ramos (BHW-ID: BHW-2024-056) started shift operations',
+                badge: 'LOGIN',
+                type: 'login'
+            },
+            {
+                timestamp: '2026-06-04 13:25:07',
+                title: 'Surveillance Report Filed',
+                description: 'Weekly disease tracking summary uploaded for Barangay Gutad',
+                badge: 'SURVEILLANCE',
+                type: 'report'
+            },
+            {
+                timestamp: '2026-06-04 13:05:33',
+                title: 'Medicine Distribution Recorded',
+                description: 'Amoxicillin dispensed to 8 patients during morning clinic hours',
+                badge: 'DISTRIBUTION',
+                type: 'distribution'
+            },
+            {
+                timestamp: '2026-06-04 12:48:56',
+                title: 'System Compliance Audit Started',
+                description: 'Automated health data privacy compliance check initiated',
+                badge: 'COMPLIANCE',
+                type: 'audit'
+            },
+            {
+                timestamp: '2026-06-04 12:31:12',
+                title: 'Resident Health Record Updated',
+                description: 'Victoria Castillo\'s vaccination record marked as complete',
+                badge: 'HEALTH RECORD',
+                type: 'update'
+            },
+            {
+                timestamp: '2026-06-04 12:18:44',
+                title: 'BHW Offline Mode Activated',
+                description: 'Connectivity lost - system switched to offline QR scanning mode',
+                badge: 'OFFLINE',
+                type: 'offline'
+            },
+            {
+                timestamp: '2026-06-04 11:55:22',
+                title: 'Patient Portal Access Granted',
+                description: 'Angelo Santos enabled two-factor authentication on account',
+                badge: 'SECURITY',
+                type: 'security'
+            },
+            {
+                timestamp: '2026-06-04 11:32:08',
+                title: 'Service Area Mapped',
+                description: 'Barangay Gutad residential zones updated - 245 households indexed',
+                badge: 'MAPPING',
+                type: 'mapping'
+            }
+        ];
+
+        
+        
+        
+        
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const userInput = document.getElementById('userInput').value.trim();
+            const passwordInput = document.getElementById('passwordInput').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
+
+            
+            loginBtn.disabled = true;
+            errorMessage.classList.remove('show');
+
+            
+            if (passwordInput !== '1234') {
+                errorMessage.textContent = '❌ Incorrect password. Please try again. (Hint: Use "1234")';
+                errorMessage.classList.add('show');
+                loginBtn.disabled = false;
+                return;
+            }
+
+            
+            if (!userInput) {
+                errorMessage.textContent = '❌ Please enter a username or email.';
+                errorMessage.classList.add('show');
+                loginBtn.disabled = false;
+                return;
+            }
+
+            
+            
+            sessionStorage.setItem('scancare_user_name', userInput);
+            sessionStorage.setItem('scancare_user_email', userInput);
+            sessionStorage.setItem('scancare_logged_in', 'true');
+
+            
+            transitionToDashboard(userInput);
+        }
+
+        
+        function transitionToDashboard(userName) {
+            const loginContainer = document.getElementById('loginContainer');
+            const adminDashboard = document.getElementById('adminDashboard');
+            const navUserName = document.getElementById('navUserName');
+
+            
+            navUserName.textContent = `Welcome, ${userName}`;
+
+            
+            loginContainer.style.opacity = '0';
+            loginContainer.style.transform = 'translateY(-20px)';
+            loginContainer.style.pointerEvents = 'none';
+
+            setTimeout(() => {
+                loginContainer.style.display = 'none';
+                adminDashboard.classList.add('active');
+                renderTransactionLog();
+            }, 300);
+        }
+
+        
+        
+        
+        
+        function renderTransactionLog() {
+            const timelineContainer = document.getElementById('timelineContainer');
+            timelineContainer.innerHTML = '';
+
+            mockTransactionLog.forEach((item, index) => {
+                const timelineItem = document.createElement('div');
+                timelineItem.className = 'timeline-item';
+                timelineItem.style.animationDelay = `${index * 0.05}s`;
+                timelineItem.style.animation = 'slideUp 0.6s ease-out backwards';
+
+                timelineItem.innerHTML = `
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">${item.timestamp}</div>
+                        <div class="timeline-title">${item.title}</div>
+                        <div class="timeline-description">${item.description}</div>
+                        <span class="timeline-badge">${item.badge}</span>
+                    </div>
+                `;
+
+                timelineContainer.appendChild(timelineItem);
+            });
+        }
+
+        
+        function handleLogout() {
+            sessionStorage.removeItem('scancare_user_name');
+            sessionStorage.removeItem('scancare_user_email');
+            sessionStorage.removeItem('scancare_logged_in');
+
+            const loginContainer = document.getElementById('loginContainer');
+            const adminDashboard = document.getElementById('adminDashboard');
+
+            adminDashboard.classList.remove('active');
+            loginContainer.style.display = 'block';
+            loginContainer.style.opacity = '0';
+            loginContainer.style.transform = 'translateY(-20px)';
+            loginContainer.style.pointerEvents = 'none';
+
+            setTimeout(() => {
+                loginContainer.style.opacity = '1';
+                loginContainer.style.transform = 'translateY(0)';
+                loginContainer.style.pointerEvents = 'auto';
+
+                
+                document.getElementById('loginForm').reset();
+                document.getElementById('errorMessage').classList.remove('show');
+                document.getElementById('loginBtn').disabled = false;
+                document.getElementById('userInput').focus();
+            }, 100);
+        }
+
+        
+        
+        
+        
+        function checkExistingSession() {
+            const isLoggedIn = sessionStorage.getItem('scancare_logged_in');
+            const userName = sessionStorage.getItem('scancare_user_name');
+
+            if (isLoggedIn && userName) {
+                
+                const loginContainer = document.getElementById('loginContainer');
+                loginContainer.style.display = 'none';
+
+                const adminDashboard = document.getElementById('adminDashboard');
+                adminDashboard.classList.add('active');
+
+                const navUserName = document.getElementById('navUserName');
+                navUserName.textContent = `Welcome, ${userName}`;
+
+                renderTransactionLog();
+            }
+        }
+
+        
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            
+            checkExistingSession();
+
+            
+            document.getElementById('userInput').focus();
+        });
+
+        
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && document.getElementById('loginContainer').style.display !== 'none') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+
+</body>
+</html>
+

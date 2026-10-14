@@ -1,0 +1,303 @@
+
+
+
+
+1. Open this URL in your browser:
+   http:
+
+2. Look at "TEST 1: Database Connection"
+   - If it says: "✓ SUCCESS: Database connection established"
+     → Go to STEP 2
+   - If it says: "✗ FAILED: Could not connect to database"
+     → FIX: Open db_config.php and verify:
+       * DB_HOST = 'localhost' (correct)
+       * DB_USER = 'root' (correct)
+       * DB_PASS = '' (check if your MySQL has a password)
+       * DB_NAME = 'scancare_db' (database exists in phpMyAdmin)
+
+3. If password issue:
+   - In phpMyAdmin, check your MySQL password
+   - Edit db_config.php:
+     define('DB_PASS', 'your_mysql_password_here');
+   - Refresh test page
+
+
+
+
+1. In test_database_operations.php page, look at:
+   - "TEST 2: Check Users Table" → Should show 3 users
+   - "TEST 3: Check Activity Logs Table" → Should show table exists
+   - "TEST 6: Check Services Table" → Should show services
+   - "TEST 7: Check Appointments Table" → Should show table exists
+
+2. If any show "✗ FAILED":
+   FIX: You need to run the SQL schema
+   - Open phpMyAdmin
+   - Select scancare_db database
+   - Go to SQL tab
+   - Paste entire contents of: SCANCARE_COMPLETE_DATABASE.sql
+   - Click "Go"
+   - Refresh test page
+
+
+
+
+1. In test_database_operations.php page, look at:
+   "TEST 4: Test UPDATE Query (Simulate Last Login Update)"
+
+2. If it says:
+   "✓ SUCCESS: UPDATE query executed"
+   - Check "New last_login:" value
+   - If it shows a timestamp → UPDATE is working! Go to STEP 4
+   
+3. If it says:
+   "✗ FAILED: UPDATE query did not execute"
+   FIX: 
+   - Check database permissions in phpMyAdmin
+   - Make sure 'root' user has UPDATE privileges
+   - Try to manually update in phpMyAdmin SQL:
+     UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = 1;
+   - If that fails, there's a database permission issue
+
+
+
+
+1. In test_database_operations.php page, look at:
+   "TEST 5: Test INSERT Query (Simulate Activity Log)"
+
+2. If it says:
+   "✓ SUCCESS: INSERT query executed"
+   - Check "New log ID:" value
+   - If it shows a number → INSERT is working! Go to STEP 5
+   
+3. If it says:
+   "✗ FAILED: INSERT query did not execute"
+   FIX:
+   - Check database permissions
+   - Try to manually insert in phpMyAdmin SQL:
+     INSERT INTO activity_logs (user_id, user_role_snapshot, action_type, ip_address) 
+     VALUES (1, 'resident', 'test', '127.0.0.1');
+   - If that fails, there's a database permission issue
+
+
+
+
+1. Open the login debug log file:
+   c:\xampp\htdocs\itelec4\login_debug.log
+
+2. If file doesn't exist:
+   - Try to login first, then check for the file
+   - File is created automatically on first login
+
+3. Check the contents:
+   Look for these lines:
+   
+   [2026-06-08 14:30:00] === LOGIN PROCESS STARTED ===
+   [2026-06-08 14:30:00] Database connection successful
+   [2026-06-08 14:30:00] Query executed - Rows found: 1
+   [2026-06-08 14:30:00] Password verification successful
+   [2026-06-08 14:30:00] Last login updated successfully
+   [2026-06-08 14:30:00] Login record inserted successfully
+   [2026-06-08 14:30:00] === LOGIN SUCCESSFUL ===
+
+4. If you see any error lines:
+   - Example: "EXCEPTION: Table 'scancare_db.activity_logs' doesn't exist"
+   - FIX: Run the SQL schema (STEP 2)
+
+5. Copy the entire login_debug.log file to see exact errors
+
+
+
+
+BEFORE TESTING:
+1. Go to test_database_operations.php
+2. Note the current "Total activity logs:" count (e.g., 5)
+
+DURING TESTING:
+3. Open http:
+4. Login with:
+   Email: resident@example.com
+   Password: Test123456
+5. You should see dashboard
+
+AFTER TESTING:
+6. Go back to test_database_operations.php
+7. Refresh the page (CTRL+F5)
+8. Look at "Total activity logs:" - should have increased by 1
+9. Look at users table - resident@example.com "Last Login" should now show timestamp
+10. Look at activity_logs table - should see new "login" entry at the bottom
+
+If NOT updated:
+- Check login_debug.log file for errors
+- Share the errors from login_debug.log
+
+
+
+
+BEFORE TESTING:
+1. Go to test_database_operations.php
+2. Note the "Total activity logs:" count
+3. Note "Total appointments:" count
+
+DURING TESTING:
+4. Login with resident@example.com
+5. Go to view_appointments.php
+6. Click "Schedule Appointment" button (if available)
+7. Fill in form:
+   - Service: Vaccination Program
+   - Date: 2026-06-15 (or future date)
+   - Time: 10:00
+   - Reason: Test appointment
+8. Click "Schedule Appointment"
+
+AFTER TESTING:
+9. Go back to test_database_operations.php
+10. Refresh page (CTRL+F5)
+11. Check if:
+    - "Total appointments:" increased
+    - "Total activity logs:" increased
+    - Latest activity shows your scheduled appointment
+
+If NOT updated:
+- Check schedule_appointment.php file for errors
+- Open browser console (F12) for JavaScript errors
+
+
+
+
+ISSUE 1: "Table doesn't exist" error
+SOLUTION:
+- Run SQL schema from phpMyAdmin
+- Use SCANCARE_COMPLETE_DATABASE.sql
+
+ISSUE 2: "Access denied" error
+SOLUTION:
+- Check MySQL password in db_config.php
+- Verify user has all privileges
+- In phpMyAdmin, go to Users tab
+- Click 'root' user, check privileges
+- Click "Check All" and save
+
+ISSUE 3: Login works but activity_logs not updated
+SOLUTION:
+- Check login_debug.log for specific error
+- Usually means UPDATE/INSERT query is failing
+- Check database permissions
+
+ISSUE 4: Last login shows NULL after login
+SOLUTION:
+- last_login should auto-update on login
+- If still NULL after 2 logins:
+  * Check login_debug.log
+  * Verify database UPDATE permission
+  * Try manual UPDATE in phpMyAdmin
+
+ISSUE 5: Appointment not saving
+SOLUTION:
+- Check that services table has data
+- Use test_database_operations.php to verify
+- Check browser console (F12) for errors
+- Review schedule_appointment.php error logs
+
+
+
+
+Before Starting:
+☐ Database scancare_db created in phpMyAdmin
+☐ SQL schema imported (all 5 tables created)
+☐ db_config.php has correct connection settings
+
+Step 1: Verification
+☐ Run test_database_operations.php
+☐ All 7 tests show SUCCESS (✓)
+
+Step 2: Login Test
+☐ Go to login.php
+☐ Login with resident@example.com / Test123456
+☐ See dashboard
+
+Step 3: Verify Login Recorded
+☐ Go to test_database_operations.php
+☐ "Total activity logs:" increased by 1
+☐ resident@example.com last_login updated
+☐ activity_logs shows new "login" entry
+
+Step 4: Appointment Test
+☐ Go to view_appointments.php
+☐ Can view appointments page
+☐ Create new appointment
+
+Step 5: Verify Appointment Recorded
+☐ Go to test_database_operations.php
+☐ "Total appointments:" increased by 1
+☐ "Total activity logs:" increased by 2 (login + appointment)
+
+
+
+
+1. Go to phpMyAdmin
+2. Select scancare_db database
+3. Click "DROP" tab (or use SQL)
+4. Drop database
+5. Create new database: scancare_db
+6. Go to SQL tab
+7. Paste SCANCARE_COMPLETE_DATABASE.sql
+8. Click Go
+9. Run test_database_operations.php
+10. Try login again
+
+
+
+
+✓ test_database_operations.php
+  → Opens at: http:
+  → Tests all database operations
+  
+✓ login_process.php (UPDATED)
+  → Creates login_debug.log with detailed logging
+  
+✓ login_debug.log
+  → Location: c:\xampp\htdocs\itelec4\login_debug.log
+  → Shows exact errors from login process
+  
+✓ SCANCARE_COMPLETE_DATABASE.sql
+  → SQL schema for phpMyAdmin
+  → Copy and paste entire contents
+
+✓ db_config.php
+  → Database connection configuration
+  → Make sure DB_PASS is correct
+
+
+
+
+SUCCESS Example:
+[2026-06-08 14:30:00] === LOGIN PROCESS STARTED ===
+[2026-06-08 14:30:00] Database connection successful
+[2026-06-08 14:30:00] User found: resident@example.com (ID: 1)
+[2026-06-08 14:30:00] Password verification successful
+[2026-06-08 14:30:00] Last login updated successfully for user ID: 1
+[2026-06-08 14:30:00] Login record inserted successfully
+[2026-06-08 14:30:00] === LOGIN SUCCESSFUL ===
+
+ERROR Example:
+[2026-06-08 14:30:00] EXCEPTION: Table 'scancare_db.activity_logs' doesn't exist
+FIX: Run SQL schema to create tables
+
+ERROR Example:
+[2026-06-08 14:30:00] EXCEPTION: SQLSTATE[HY000]: General error: 1030 Got error 28
+FIX: Database disk space or permissions issue
+
+
+
+
+1. Start with STEP 1 above
+2. Follow each step in order
+3. If all tests pass, your system is working
+4. If any test fails, fix it before moving to next step
+5. Once all working, monitor phpMyAdmin to see updates
+
+Good luck! 🚀
+============================================================================
+*/
+

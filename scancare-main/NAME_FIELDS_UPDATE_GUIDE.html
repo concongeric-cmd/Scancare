@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Name Fields & Middle Initial Update - Complete Guide</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 { color: #1976d2; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { color: #666; font-size: 14px; margin-bottom: 30px; }
+        h2 { color: #1976d2; margin-top: 30px; margin-bottom: 15px; }
+        .step {
+            display: flex;
+            margin: 25px 0;
+            align-items: flex-start;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        .step-content h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .step-content p {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #d32f2f;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .button:hover { background: #764ba2; }
+        .info-box {
+            background: #bbdefb;
+            border-left: 4px solid #1976d2;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            color: #1565c0;
+        }
+        .success-box {
+            background: #c8e6c9;
+            border-left: 4px solid #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            color: #2e7d32;
+        }
+        .changes-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        .changes-table th, .changes-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .changes-table th {
+            background: #667eea;
+            color: white;
+        }
+        .changes-table tr:nth-child(even) { background: #f9f9f9; }
+        .checklist { margin: 15px 0 0 20px; }
+        .checklist li { margin: 8px 0; color: #666; }
+        .form-preview {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Name Fields & Middle Initial - Complete Update</h1>
+        <p class="subtitle">Registration form now uses separate fields: Last Name, First Name, Middle Initial</p>
+
+        <!
+        <h2>📋 What Changed</h2>
+        <table class="changes-table">
+            <tr>
+                <th>Component</th>
+                <th>Old Structure</th>
+                <th>New Structure</th>
+                <th>File(s)</th>
+            </tr>
+            <tr>
+                <td>Registration Form</td>
+                <td><code>Full Name</code> (single field)</td>
+                <td><code>Last Name, First Name, Middle Initial</code> (3 fields)</td>
+                <td>login.php</td>
+            </tr>
+            <tr>
+                <td>Database Column</td>
+                <td>No middle_initial</td>
+                <td>✅ Added <code>middle_initial VARCHAR(5)</code></td>
+                <td>users table</td>
+            </tr>
+            <tr>
+                <td>Session Display</td>
+                <td>"First Last"</td>
+                <td>"First Last MI" (e.g., "John Doe A")</td>
+                <td>All</td>
+            </tr>
+            <tr>
+                <td>Timestamps</td>
+                <td>CURRENT_TIMESTAMP</td>
+                <td>NOW() (more accurate)</td>
+                <td>All</td>
+            </tr>
+        </table>
+
+        <!
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>Add Middle Initial Column to Database</h3>
+                <p>First, add the <code>middle_initial</code> column to your users table:</p>
+                <p><code>database/schema.sql</code> includes this column in the canonical schema.</p>
+            </div>
+        </div>
+
+        <!
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>New Registration Form</h3>
+                <p>The signup form now has three separate name fields:</p>
+                <div class="form-preview">
+                    Last Name: [______________________]<br/>
+                    First Name: [______________________]<br/>
+                    Middle Initial: [______]<br/>
+                </div>
+                <p>Users will now enter:</p>
+                <ul class="checklist">
+                    <li><strong>Last Name:</strong> "Dela Cruz"</li>
+                    <li><strong>First Name:</strong> "Juan"</li>
+                    <li><strong>Middle Initial:</strong> "A" or "AB"</li>
+                </ul>
+                <p style="margin-top: 10px;"><strong>Result in database:</strong> last_name="Dela Cruz", first_name="Juan", middle_initial="A"</p>
+                <p style="margin-top: 10px;"><strong>Display name:</strong> "Juan Dela Cruz A"</p>
+            </div>
+        </div>
+
+        <!
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>Test the New Registration</h3>
+                <p>Go to the signup page and test with the new form:</p>
+                <a href="login.php?signup=1" class="button">📝 Go to Sign Up</a>
+                <p style="margin-top: 15px;">Test data:</p>
+                <div class="form-preview">
+                    Last Name: Santos<br/>
+                    First Name: Maria<br/>
+                    Middle Initial: G<br/>
+                    Email: maria@example.com<br/>
+                    Password: password123<br/>
+                </div>
+            </div>
+        </div>
+
+        <!
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <h3>Verify in Database</h3>
+                <p>Check that the data was saved correctly in phpMyAdmin:</p>
+                <a href="http:
+                <p style="margin-top: 15px;">Look for these columns in the <code>users</code> table:</p>
+                <ul class="checklist">
+                    <li><code>first_name:</code> Maria</li>
+                    <li><code>middle_initial:</code> G</li>
+                    <li><code>last_name:</code> Santos</li>
+                    <li><code>created_at:</code> (timestamp when registered)</li>
+                    <li><code>updated_at:</code> (timestamp when registered)</li>
+                    <li><code>last_login:</code> (timestamp when first login)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!
+        <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content">
+                <h3>Test Login & Verify Timestamps</h3>
+                <p>Login and verify the system works correctly:</p>
+                <a href="login.php" class="button">🔐 Go to Login</a>
+                <p style="margin-top: 15px;">Expected behavior:</p>
+                <ul class="checklist">
+                    <li>User name displays as "Maria Santos G" in navigation</li>
+                    <li><code>last_login</code> timestamp updates in database</li>
+                    <li><code>updated_at</code> shows accurate current time</li>
+                </ul>
+            </div>
+        </div>
+
+        <!
+        <h2>🔧 Technical Details - Files Modified</h2>
+
+        <div class="info-box">
+            <strong>login.php</strong>
+            <p style="margin-top: 10px;">
+                ✅ Signup form: Changed from single "Full Name" field to three separate fields<br/>
+                ✅ Signup handler: Updated to capture last_name, first_name, middle_initial<br/>
+                ✅ Login handler: Updated to retrieve and include middle_initial in session<br/>
+                ✅ Timestamps: Changed to NOW() for more accurate database recording
+            </p>
+        </div>
+
+        <div class="info-box">
+            <strong>signup_process.php</strong>
+            <p style="margin-top: 10px;">
+                ✅ Validation: Now requires first_name and last_name (middle_initial optional)<br/>
+                ✅ Database insert: Includes middle_initial column<br/>
+                ✅ Session: Builds user_name with middle initial if provided<br/>
+                ✅ Timestamps: Uses NOW() instead of CURRENT_TIMESTAMP
+            </p>
+        </div>
+
+        <div class="info-box">
+            <strong>login_process.php</strong>
+            <p style="margin-top: 10px;">
+                ✅ SQL query: Now retrieves middle_initial from database<br/>
+                ✅ Session: Includes middle_initial in user_name display<br/>
+                ✅ Timestamp: Updates last_login using NOW()</p>
+        </div>
+
+        <div class="info-box">
+            <strong>Database (users table)</strong>
+            <p style="margin-top: 10px;">
+                ✅ New column: <code>middle_initial VARCHAR(5) NULL</code> (added after first_name)<br/>
+                ✅ All timestamps: Use proper NOW() function for accuracy
+            </p>
+        </div>
+
+        <!
+        <h2>📋 How Names Display</h2>
+
+        <table class="changes-table">
+            <tr>
+                <th>Location</th>
+                <th>Data</th>
+                <th>Display Format</th>
+            </tr>
+            <tr>
+                <td>User Navigation Bar</td>
+                <td>John, Doe, M</td>
+                <td>John Doe M</td>
+            </tr>
+            <tr>
+                <td>Dashboard Welcome</td>
+                <td>Maria, Santos, G</td>
+                <td>Welcome, Maria Santos G</td>
+            </tr>
+            <tr>
+                <td>Session Variable</td>
+                <td>Juan, Dela Cruz, A</td>
+                <td>$_SESSION['user_name'] = "Juan Dela Cruz A"</td>
+            </tr>
+            <tr>
+                <td>Database - first_name</td>
+                <td colspan="2">John</td>
+            </tr>
+            <tr>
+                <td>Database - middle_initial</td>
+                <td colspan="2">M</td>
+            </tr>
+            <tr>
+                <td>Database - last_name</td>
+                <td colspan="2">Doe</td>
+            </tr>
+        </table>
+
+        <!
+        <h2>❓ FAQ</h2>
+
+        <div class="info-box" style="margin-bottom: 15px;">
+            <strong>Q: Is middle initial required?</strong><br/>
+            <p style="margin-top: 8px;">A: No, it's optional. Users can skip it and it will be saved as NULL in the database.</p>
+        </div>
+
+        <div class="info-box" style="margin-bottom: 15px;">
+            <strong>Q: What happens to existing users?</strong><br/>
+            <p style="margin-top: 8px;">A: Existing users will continue to work. Their middle_initial column will be NULL. When they login, they'll still display correctly without the middle initial.</p>
+        </div>
+
+        <div class="info-box" style="margin-bottom: 15px;">
+            <strong>Q: Why use NOW() instead of CURRENT_TIMESTAMP?</strong><br/>
+            <p style="margin-top: 8px;">A: NOW() is evaluated at execution time (more accurate for immediate updates like last_login), while CURRENT_TIMESTAMP is sometimes evaluated at different times.</p>
+        </div>
+
+        <div class="info-box">
+            <strong>Q: Can I edit the middle initial after registration?</strong><br/>
+            <p style="margin-top: 8px;">A: Currently, the system doesn't have an edit profile feature. You would need to contact an admin to modify it, or we can add a profile edit page in the future.</p>
+        </div>
+
+        <!
+        <div class="success-box" style="margin-top: 30px;">
+            <strong>✓ System Updated Successfully!</strong>
+            <p style="margin-top: 10px;">
+                ✓ Registration form updated<br/>
+                ✓ Database structure enhanced<br/>
+                ✓ Timestamps made more accurate<br/>
+                ✓ All handlers updated
+            </p>
+            <p style="margin-top: 15px;">Start with <strong>Step 1</strong> above to add the middle_initial column to your database.</p>
+        </div>
+    </div>
+</body>
+</html>
+

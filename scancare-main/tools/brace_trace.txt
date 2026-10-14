@@ -1,0 +1,121 @@
+﻿OPEN  1     228 if (empty($identifier) || empty($password)) {
+CLOSE 1     230 matches OPEN    1 at 228  if (empty($identifier) || empty($password)) {
+OPEN  1     230 } else {
+OPEN  2     231 try {
+OPEN  3     234 if ($pdo === false) {
+CLOSE 3     236 matches OPEN    3 at 234  if ($pdo === false) {
+OPEN  3     236 } else {
+OPEN  4     246 if ($residentHasStatus) {
+CLOSE 4     248 matches OPEN    4 at 246  if ($residentHasStatus) {
+OPEN  4     249 if ($residentHasDeletedAt) {
+CLOSE 4     251 matches OPEN    4 at 249  if ($residentHasDeletedAt) {
+OPEN  4     254 if ($identifier_is_email) {
+OPEN  5     255 $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE LOWER(email) = ? LIMIT 1");
+CLOSE 5     255 matches OPEN    5 at 255  $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE LOWER(email) = ? LIMIT 1");
+CLOSE 4     258 matches OPEN    4 at 254  if ($identifier_is_email) {
+OPEN  4     258 } else {
+OPEN  5     263 $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE REPLACE(REPLACE(REPLACE(contact_number, ' ', ''), '-', ''), '+', '') = ? LIMIT 1");
+CLOSE 5     263 matches OPEN    5 at 263  $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE REPLACE(REPLACE(REPLACE(contact_number, ' ', ''), '-', ''), '+', '') = ? LIMIT 1");
+OPEN  5     269 if (!$resident && $normalized_phone_digits !== '') {
+OPEN  6     270 $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE email LIKE ? LIMIT 1");
+CLOSE 6     270 matches OPEN    6 at 270  $stmt = $pdo->prepare("SELECT {$residentColumns} FROM RESIDENT WHERE email LIKE ? LIMIT 1");
+CLOSE 5     273 matches OPEN    5 at 269  if (!$resident && $normalized_phone_digits !== '') {
+CLOSE 4     274 matches OPEN    4 at 258  } else {
+OPEN  4     279 if ($resident) {
+OPEN  5     281 if ($residentHasStatus && isset($resident['is_active']) && intval($resident['is_active']) === 0) {
+CLOSE 5     283 matches OPEN    5 at 281  if ($residentHasStatus && isset($resident['is_active']) && intval($resident['is_active']) === 0) {
+OPEN  5     284 if (!$accountInactive && $residentHasDeletedAt && !empty($resident['deleted_at'])) {
+CLOSE 5     286 matches OPEN    5 at 284  if (!$accountInactive && $residentHasDeletedAt && !empty($resident['deleted_at'])) {
+OPEN  5     288 if ($accountInactive) {
+CLOSE 5     291 matches OPEN    5 at 288  if ($accountInactive) {
+OPEN  5     291 } else {
+OPEN  6     294 if (!empty($resident['password_hash'])) {
+CLOSE 6     296 matches OPEN    6 at 294  if (!empty($resident['password_hash'])) {
+OPEN  6     296 } elseif (!empty($resident['password'])) {
+CLOSE 6     298 matches OPEN    6 at 296  } elseif (!empty($resident['password'])) {
+OPEN  6     300 if ($storedHash && password_verify($password, $storedHash)) {
+CLOSE 6     302 matches OPEN    6 at 300  if ($storedHash && password_verify($password, $storedHash)) {
+OPEN  6     302 } else {
+CLOSE 6     306 matches OPEN    6 at 302  } else {
+OPEN  6     308 if ($storedHash) {
+OPEN  7     310 if ($pendingLogin) {
+OPEN  8     315 if ($isAjaxRequest) {
+CLOSE 8     325 matches OPEN    8 at 315  if ($isAjaxRequest) {
+CLOSE 7     326 matches OPEN    7 at 310  if ($pendingLogin) {
+OPEN  7     326 } else {
+OPEN  8     345 error_log("RESIDENT LOGIN: Resident ID {$resident['resident_id']} logged in successfully");
+CLOSE 8     345 matches OPEN    8 at 345  error_log("RESIDENT LOGIN: Resident ID {$resident['resident_id']} logged in successfully");
+CLOSE 7     352 matches OPEN    7 at 326  } else {
+CLOSE 6     353 matches OPEN    6 at 308  if ($storedHash) {
+CLOSE 5     354 matches OPEN    5 at 291  } else {
+OPEN  5     357 if (!$loginHandled && !empty($error) && isset($resident) && $resident) {
+CLOSE 5     360 matches OPEN    5 at 357  if (!$loginHandled && !empty($error) && isset($resident) && $resident) {
+OPEN  5     369 if (!$loginHandled) {
+OPEN  6     370 if ($identifier_is_email) {
+CLOSE 6     386 matches OPEN    6 at 370  if ($identifier_is_email) {
+OPEN  6     388 if (!$skipOtherAuth && $admin && password_verify($password, $admin['password_hash'])) {
+OPEN  7     390 if ($pendingLogin) {
+OPEN  8     395 if ($isAjaxRequest) {
+CLOSE 8     405 matches OPEN    8 at 395  if ($isAjaxRequest) {
+CLOSE 7     406 matches OPEN    7 at 390  if ($pendingLogin) {
+OPEN  7     406 } else {
+OPEN  8     422 if ($identifier_is_email) {
+CLOSE 8     424 matches OPEN    8 at 422  if ($identifier_is_email) {
+OPEN  8     424 } else {
+CLOSE 8     426 matches OPEN    8 at 424  } else {
+OPEN  8     431 error_log("ADMIN LOGIN: Admin ID {$admin['admin_id']} logged in successfully");
+CLOSE 8     431 matches OPEN    8 at 431  error_log("ADMIN LOGIN: Admin ID {$admin['admin_id']} logged in successfully");
+CLOSE 7     438 matches OPEN    7 at 406  } else {
+CLOSE 6     439 matches OPEN    6 at 388  if (!$skipOtherAuth && $admin && password_verify($password, $admin['password_hash'])) {
+CLOSE 5     440 matches OPEN    5 at 369  if (!$loginHandled) {
+OPEN  5     451 if ($healthWorkerHasStatus) {
+CLOSE 5     453 matches OPEN    5 at 451  if ($healthWorkerHasStatus) {
+OPEN  5     454 if ($healthWorkerHasDeletedAt) {
+CLOSE 5     456 matches OPEN    5 at 454  if ($healthWorkerHasDeletedAt) {
+OPEN  5     458 if (!$loginHandled) {
+OPEN  6     460 if ($identifier_is_email) {
+OPEN  7     463 {$workerColumns}
+CLOSE 7     463 matches OPEN    7 at 463  {$workerColumns}
+CLOSE 6     470 matches OPEN    6 at 460  if ($identifier_is_email) {
+OPEN  6     470 } else {
+OPEN  7     471 $stmt = $pdo->prepare("SELECT {$workerColumns}, contact_number FROM HEALTH_WORKER WHERE contact_number = ? LIMIT 1");
+CLOSE 7     471 matches OPEN    7 at 471  $stmt = $pdo->prepare("SELECT {$workerColumns}, contact_number FROM HEALTH_WORKER WHERE contact_number = ? LIMIT 1");
+CLOSE 6     474 matches OPEN    6 at 470  } else {
+OPEN  6     476 if (!$skipOtherAuth && $worker) {
+OPEN  7     478 if ($healthWorkerHasStatus && isset($worker['is_active']) && intval($worker['is_active']) === 0) {
+CLOSE 7     480 matches OPEN    7 at 478  if ($healthWorkerHasStatus && isset($worker['is_active']) && intval($worker['is_active']) === 0) {
+OPEN  7     481 if (!$workerInactive && $healthWorkerHasDeletedAt && !empty($worker['deleted_at'])) {
+CLOSE 7     483 matches OPEN    7 at 481  if (!$workerInactive && $healthWorkerHasDeletedAt && !empty($worker['deleted_at'])) {
+OPEN  7     485 if ($workerInactive) {
+CLOSE 7     487 matches OPEN    7 at 485  if ($workerInactive) {
+OPEN  7     487 } elseif (password_verify($password, $worker['password_hash'])) {
+OPEN  8     489 if ($pendingLogin) {
+OPEN  9     494 if ($isAjaxRequest) {
+CLOSE 9     504 matches OPEN    9 at 494  if ($isAjaxRequest) {
+CLOSE 8     505 matches OPEN    8 at 489  if ($pendingLogin) {
+OPEN  8     505 } else {
+OPEN  9     521 if ($identifier_is_email) {
+CLOSE 9     523 matches OPEN    9 at 521  if ($identifier_is_email) {
+OPEN  9     523 } else {
+CLOSE 9     525 matches OPEN    9 at 523  } else {
+OPEN  9     530 error_log("HEALTH WORKER LOGIN: Worker ID {$worker['worker_id']} ({$worker['role']}) logged in successfully");
+CLOSE 9     530 matches OPEN    9 at 530  error_log("HEALTH WORKER LOGIN: Worker ID {$worker['worker_id']} ({$worker['role']}) logged in successfully");
+OPEN  9     530 error_log("HEALTH WORKER LOGIN: Worker ID {$worker['worker_id']} ({$worker['role']}) logged in successfully");
+CLOSE 9     530 matches OPEN    9 at 530  error_log("HEALTH WORKER LOGIN: Worker ID {$worker['worker_id']} ({$worker['role']}) logged in successfully");
+CLOSE 8     537 matches OPEN    8 at 505  } else {
+CLOSE 7     538 matches OPEN    7 at 487  } elseif (password_verify($password, $worker['password_hash'])) {
+CLOSE 6     539 matches OPEN    6 at 476  if (!$skipOtherAuth && $worker) {
+CLOSE 5     540 matches OPEN    5 at 458  if (!$loginHandled) {
+OPEN  5     548 if (!empty($accountInactiveMessage)) {
+CLOSE 5     550 matches OPEN    5 at 548  if (!empty($accountInactiveMessage)) {
+OPEN  5     550 } else {
+CLOSE 5     552 matches OPEN    5 at 550  } else {
+OPEN  5     553 error_log("LOGIN FAILED: Identifier {$identifier_lower} - credentials not matched");
+CLOSE 5     553 matches OPEN    5 at 553  error_log("LOGIN FAILED: Identifier {$identifier_lower} - credentials not matched");
+CLOSE 4     554 matches OPEN    4 at 279  if ($resident) {
+CLOSE 3     555 matches OPEN    3 at 236  } else {
+OPEN  3     555 } catch (Exception $e) {
+STACK REMAINING: 3
+OPEN at line 230 col 16 snippet=} else {
+OPEN at line 231 col 17 snippet=try {
+OPEN at line 555 col 36 snippet=} catch (Exception $e) {

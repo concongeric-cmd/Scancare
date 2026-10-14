@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert Escalation Widget - Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+        
+        body {
+            background: linear-gradient(to right, #454b1b05 1px, transparent 1px), 
+                        linear-gradient(to bottom, #454b1b05 1px, transparent 1px);
+            background-size: 24px 24px;
+            background-color: #F8FAF6;
+        }
+    </style>
+</head>
+<body class="font-body text-slate-800 antialiased min-h-screen py-12">
+    <div class="max-w-7xl mx-auto px-6 space-y-16">
+        
+        <!-- Header -->
+        <div class="space-y-4">
+            <h1 class="text-4xl lg:text-5xl font-heading font-extrabold text-slate-900">
+                Alert Escalation Widget
+            </h1>
+            <p class="text-base text-slate-600 font-medium max-w-2xl">
+                Flexible, accessible component for displaying and managing alert levels in ScanCare.
+            </p>
+        </div>
+
+        <!-- Mode 1: Compact Badge Widget -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-heading font-bold text-slate-900 mb-2">Mode 1: Compact Status Badge</h2>
+                <p class="text-sm text-slate-600">Ideal for headers, sidebars, and dashboard status displays. Click to view detailed escalation levels.</p>
+            </div>
+            
+            <div class="bg-white border border-slate-200 rounded-xl p-8 shadow-sm space-y-8">
+                <div class="space-y-4">
+                    <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Example: Current Level 2 (Watch)</p>
+                    <div id="badge-widget-container" class="inline-block"></div>
+                </div>
+
+                <div class="pt-6 border-t border-slate-200 space-y-4">
+                    <p class="text-sm font-semibold text-slate-900">Test Different Levels:</p>
+                    <div class="flex gap-3 flex-wrap">
+                        <button onclick="updateBadgeWidget(1)" class="px-4 py-2 rounded-lg bg-green-100 text-green-700 font-semibold hover:bg-green-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            Level 1: Baseline
+                        </button>
+                        <button onclick="updateBadgeWidget(2)" class="px-4 py-2 rounded-lg bg-yellow-100 text-yellow-700 font-semibold hover:bg-yellow-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                            Level 2: Watch
+                        </button>
+                        <button onclick="updateBadgeWidget(3)" class="px-4 py-2 rounded-lg bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                            Level 3: Alert
+                        </button>
+                        <button onclick="updateBadgeWidget(4)" class="px-4 py-2 rounded-lg bg-red-100 text-red-700 font-semibold hover:bg-red-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            Level 4: Emergency
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mode 2: Horizontal Timeline -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-heading font-bold text-slate-900 mb-2">Mode 2: Horizontal Escalation Timeline</h2>
+                <p class="text-sm text-slate-600">Comprehensive visualization of all escalation levels with detailed information cards.</p>
+            </div>
+            
+            <div class="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
+                <div id="timeline-widget-horizontal" class="space-y-6"></div>
+            </div>
+        </section>
+
+        <!-- Mode 3: Vertical Timeline -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-heading font-bold text-slate-900 mb-2">Mode 3: Vertical Escalation Timeline</h2>
+                <p class="text-sm text-slate-600">Stacked view for mobile-first and detailed reading experiences.</p>
+            </div>
+            
+            <div class="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
+                <div id="timeline-widget-vertical" class="space-y-6"></div>
+            </div>
+        </section>
+
+        <!-- Documentation -->
+        <section class="space-y-6 pb-12">
+            <div>
+                <h2 class="text-2xl font-heading font-bold text-slate-900 mb-2">Integration Guide</h2>
+                <p class="text-sm text-slate-600">How to use the component in your PHP pages.</p>
+            </div>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                <h3 class="font-semibold text-slate-900">Basic Usage:</h3>
+                <pre class="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto text-xs"><code>&lt;!-- Add to your PHP page --&gt;
+&lt;script src="path/to/alert-escalation-widget.js"&gt;&lt;/script&gt;
+
+&lt;!-- Badge Mode --&gt;
+&lt;div id="badge-widget"&gt;&lt;/div&gt;
+&lt;script&gt;
+  const badgeWidget = new AlertEscalationWidget({
+    containerId: 'badge-widget',
+    mode: 'badge',
+    activeLevel: 2,
+    onLevelChange: (level) => {
+      console.log('Alert level changed to:', level);
+      // Update your backend via AJAX
+    }
+  });
+  badgeWidget.render();
+&lt;/script&gt;
+
+&lt;!-- Timeline Mode --&gt;
+&lt;div id="timeline-widget"&gt;&lt;/div&gt;
+&lt;script&gt;
+  const timelineWidget = new AlertEscalationWidget({
+    containerId: 'timeline-widget',
+    mode: 'timeline',
+    orientation: 'horizontal', // or 'vertical'
+    activeLevel: 3,
+    isInteractive: true
+  });
+  timelineWidget.render();
+&lt;/script&gt;</code></pre>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                <h3 class="font-semibold text-slate-900">Configuration Options:</h3>
+                <ul class="space-y-2 text-sm text-slate-700">
+                    <li><strong>containerId</strong>: ID of the HTML element to render into (required)</li>
+                    <li><strong>mode</strong>: 'badge' or 'timeline' (default: 'badge')</li>
+                    <li><strong>activeLevel</strong>: Current alert level 1-4 (default: 1)</li>
+                    <li><strong>orientation</strong>: 'horizontal' or 'vertical' for timeline mode (default: 'horizontal')</li>
+                    <li><strong>isInteractive</strong>: Enable level adjustment controls (default: true)</li>
+                    <li><strong>onLevelChange</strong>: Callback function when level changes</li>
+                </ul>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 space-y-2">
+                <h3 class="font-semibold text-blue-900 flex items-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    Accessibility Features
+                </h3>
+                <ul class="space-y-1 text-sm text-blue-800 ml-6">
+                    <li>✓ WCAG 2.1 Level AA compliant</li>
+                    <li>✓ Full keyboard navigation (Tab, Enter, Space, Arrow keys)</li>
+                    <li>✓ Proper aria-labels and roles</li>
+                    <li>✓ Focus management and visual indicators</li>
+                    <li>✓ Semantic HTML structure</li>
+                    <li>✓ Screen reader friendly</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- Script: Initialize Widgets -->
+    <script src="alert-escalation-widget.js"></script>
+    <script>
+        // Badge Widget (Mode 1)
+        const badgeWidget = new AlertEscalationWidget({
+            containerId: 'badge-widget-container',
+            mode: 'badge',
+            activeLevel: 2,
+            onLevelChange: (level) => {
+                console.log('Badge widget level changed to:', level);
+            }
+        });
+        badgeWidget.render();
+
+        // Timeline Widget - Horizontal (Mode 2)
+        const timelineHWidget = new AlertEscalationWidget({
+            containerId: 'timeline-widget-horizontal',
+            mode: 'timeline',
+            orientation: 'horizontal',
+            activeLevel: 3,
+            isInteractive: true,
+            onLevelChange: (level) => {
+                console.log('Timeline (H) widget level changed to:', level);
+            }
+        });
+        timelineHWidget.render();
+
+        // Timeline Widget - Vertical (Mode 3)
+        const timelineVWidget = new AlertEscalationWidget({
+            containerId: 'timeline-widget-vertical',
+            mode: 'timeline',
+            orientation: 'vertical',
+            activeLevel: 2,
+            isInteractive: true,
+            onLevelChange: (level) => {
+                console.log('Timeline (V) widget level changed to:', level);
+            }
+        });
+        timelineVWidget.render();
+
+        // Update badge widget
+        function updateBadgeWidget(level) {
+            badgeWidget.setActiveLevel(level);
+        }
+    </script>
+</body>
+</html>

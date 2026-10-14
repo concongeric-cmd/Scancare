@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^powershell -NoProfile -Command \"Get-Content \\.\\\\surveillance\\.php \\| Where-Object \\{ \\$_\\.Trim\\(\\) -ne '<!' \\} \\| Set-Content \\.\\\\surveillance\\.php -Encoding UTF8\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

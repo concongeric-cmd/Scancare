@@ -1,0 +1,107 @@
+<!
+     PROFILE PICTURE COMPONENT - TAILWIND CSS VERSION
+     Ready to Copy & Paste into Your Dashboard
+     ============================================================================
+     
+     Instructions:
+     1. Make sure your dashboard has Tailwind CSS & Font Awesome loaded
+     2. Copy this entire HTML into your dashboard body
+     3. Add the JavaScript from PROFILE_PIC_JAVASCRIPT.js before </body>
+     4. Update upload_profile.php backend endpoint
+     
+     ============================================================================ 
+
+<div class="bg-white rounded-lg shadow-sm p-8 border border-gray-200 mb-8">
+    
+    <!
+    <h2 class="text-lg font-semibold text-gray-900 mb-6">
+        <i class="fa-solid fa-image mr-2" style="color: #454B1B;"></i>Profile Picture
+    </h2>
+    
+    <!
+    <div class="flex flex-col items-center gap-6">
+        
+        <!
+        <div 
+            id="profilePictureContainer" 
+            class="relative w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 border-4 border-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow duration-300 group"
+            role="button"
+            tabindex="0"
+            aria-label="Upload profile picture"
+            title="Click to upload profile picture"
+        >
+            <!
+            <img 
+                id="profileImage" 
+                src="data:image/svg+xml,%3Csvg xmlns='http:
+                alt="Profile picture"
+                class="w-full h-full object-cover"
+            >
+            
+            <!
+            <div 
+                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
+            >
+                <div class="text-center">
+                    <i class="fa-solid fa-camera text-white text-2xl mb-2"></i>
+                    <p class="text-white text-sm font-medium">Change Photo</p>
+                </div>
+            </div>
+        </div>
+        
+        <!
+        <input 
+            type="file" 
+            id="profileUploadInput" 
+            class="hidden" 
+            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+            aria-label="Select profile picture file"
+        >
+        
+        <!
+        <p class="text-sm text-slate-500 text-center">
+            <i class="fa-solid fa-info-circle mr-1" style="color: #454B1B;"></i>
+            Allowed: JPG, JPEG, PNG (Max 2MB)
+        </p>
+        
+        <!
+        <div 
+            id="validationMessage" 
+            class="hidden w-full p-3 rounded-lg border flex items-start gap-2 text-sm"
+            role="alert"
+        >
+            <i id="validationIcon" class="fa-solid mt-0.5"></i>
+            <span id="validationText"></span>
+        </div>
+        
+        <!
+        <div 
+            id="actionButtons" 
+            class="hidden w-full flex gap-3 pt-2"
+        >
+            <!
+            <button 
+                id="saveButton" 
+                class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                aria-label="Save profile picture"
+            >
+                <i class="fa-solid fa-check"></i>
+                <span id="saveButtonText">Save Changes</span>
+            </button>
+            
+            <!
+            <button 
+                id="cancelButton" 
+                class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold py-2.5 px-4 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Cancel profile picture upload"
+            >
+                <i class="fa-solid fa-times mr-2"></i>
+                Cancel
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+<!
+

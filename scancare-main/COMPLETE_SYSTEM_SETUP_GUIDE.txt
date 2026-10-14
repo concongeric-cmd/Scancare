@@ -1,0 +1,413 @@
+
+
+
+
+
+1. Open: http:
+2. Click "Create new database"
+3. Database name: scancare_db
+4. Click "Create"
+
+
+1. In phpMyAdmin, select the "scancare_db" database
+2. Click the "SQL" tab
+3. Open file: SCANCARE_COMPLETE_DATABASE.sql
+4. Copy entire contents
+5. Paste into phpMyAdmin SQL editor
+6. Click "Go"
+7. You should see no errors
+
+
+✓ users table
+  - Stores user profiles with accurate email from login
+  - Includes last_login timestamp for monitoring
+  - Roles: resident, bhw, admin
+
+✓ services table
+  - Lists all available health services
+  - Categories: vaccination, dental, checkup, prenatal, medication, other
+
+✓ appointments table
+  - Tracks all scheduled appointments
+  - Links residents to services
+  - Records completion status
+
+✓ medical_history table
+  - Patient medical records
+  - Tracks past visits and treatments
+
+✓ activity_logs table
+  - Complete audit trail of all actions
+  - Login, logout, appointment scheduling
+  - IP addresses and timestamps
+
+
+
+
+
+When a user logs in:
+1. They enter their email and password in login.php
+2. login_process.php queries the users table with that email
+3. On successful login, the email is stored in: $_SESSION['email']
+4. This email is captured accurately from the login form submission
+
+Example:
+- User logs in with: maria.santos@email.com
+- $_SESSION['email'] = 'maria.santos@email.com'
+- This exact email is shown in view_appointments.php
+- This email is used in activity logs
+
+
+✓ The email in the database is what the user actually logged in with
+✓ It's not modified or altered in any way
+✓ Session variables preserve the original email from the database
+
+Test it:
+1. Login with: resident@example.com
+2. Go to view_appointments.php
+3. You'll see: Email: resident@example.com
+4. Check activity_logs in phpMyAdmin - that email is recorded
+
+
+
+
+
+The test users in the database show last_login = NULL because:
+- They were inserted into the database when we ran the SQL script
+- They have never actually logged in since then
+- The last_login column ONLY updates when someone logs in
+
+
+In login_process.php (line 109):
+```php
+$update_query = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = ?";
+$update_stmt = $pdo->prepare($update_query);
+$update_stmt->bindParam(1, $user['user_id'], PDO::PARAM_INT);
+$update_stmt->execute();
+```
+
+This runs AFTER password verification succeeds.
+
+
+1. Go to: http:
+2. Login with: resident@example.com / Test123456
+3. You should see dashboard
+4. Logout
+5. Go to phpMyAdmin
+6. Click on "users" table
+7. Look at the "resident@example.com" row
+8. last_login now shows: 2026-06-08 14:30:45 (or current time)
+
+
+Each time a user logs in, last_login is automatically updated to the current timestamp.
+
+You can track:
+- When each user last accessed the system
+- Monitor inactive accounts
+- Generate reports on user activity
+
+
+
+
+
+✓ schedule_appointment.php
+  - Backend processor for scheduling appointments
+  - Validates appointment data
+  - Inserts into appointments table
+  - Logs action to activity_logs
+  - Returns JSON response
+
+✓ view_appointments.php
+  - Frontend page to view all user's appointments
+  - Shows appointment details
+  - Displays user's accurate email
+  - Allow appointment cancellation
+
+✓ cancel_appointment.php
+  - Handles appointment cancellation
+  - Updates status to 'canceled'
+  - Logs cancellation to activity_logs
+
+
+
+In your dashboard (or appointments page), add this HTML form:
+
+```html
+<form method="POST" action="schedule_appointment.php" style="margin-top: 20px;">
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px;">Select Service:</label>
+        <select name="service_id" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+            <option value="">
+            <?php
+            $pdo = getDatabaseConnection();
+            $services = $pdo->query("SELECT service_id, service_name FROM services WHERE is_available = TRUE ORDER BY service_name");
+            while ($service = $services->fetch()) {
+                echo "<option value=\"{$service['service_id']}\">{$service['service_name']}</option>";
+            }
+            ?>
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px;">Appointment Date:</label>
+        <input type="date" name="appointment_date" required min="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px;">Appointment Time:</label>
+        <input type="time" name="appointment_time" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px;">Reason for Appointment:</label>
+        <textarea name="reason" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; min-height: 80px;"></textarea>
+    </div>
+    
+    <button type="submit" style="background: #454B1B; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%;">
+        Schedule Appointment
+    </button>
+</form>
+```
+
+
+If using AJAX, schedule_appointment.php returns JSON:
+```json
+{
+    "success": true,
+    "message": "Appointment scheduled successfully!",
+    "appointment_id": 1,
+    "user_email": "resident@example.com",
+    "appointment_date": "2026-06-15",
+    "appointment_time": "10:00"
+}
+```
+
+
+Users can view all their appointments at:
+```
+http:
+```
+
+Shows:
+- Appointment date and time
+- Service name
+- Assigned healthcare worker (if any)
+- Reason for appointment
+- Status (scheduled, completed, canceled)
+- Cancel button for upcoming appointments
+
+
+In phpMyAdmin, check appointments table:
+```sql
+SELECT 
+    a.appointment_id,
+    u.email,
+    CONCAT(u.first_name, ' ', u.last_name) as resident_name,
+    s.service_name,
+    a.appointment_date,
+    a.appointment_time,
+    a.status
+FROM appointments a
+JOIN users u ON a.user_id = u.user_id
+JOIN services s ON a.service_id = s.service_id
+ORDER BY a.appointment_date;
+```
+
+
+
+
+
+✓ login
+  - When user logs in
+  - IP address captured
+  - User agent (browser) captured
+
+✓ logout
+  - When user logs out
+  - Timestamp recorded
+
+✓ scheduled_appointment
+  - When appointment is created
+  - Service type recorded
+  - Description includes appointment ID
+
+✓ canceled_appointment
+  - When appointment is canceled
+  - Timestamp of cancellation
+
+
+1. Go to phpMyAdmin
+2. Select scancare_db database
+3. Click on activity_logs table
+4. Click "Browse"
+5. See all user actions with timestamps
+
+
+```sql
+SELECT 
+    al.log_id,
+    u.email,
+    al.action_type,
+    al.action_description,
+    al.ip_address,
+    al.timestamp
+FROM activity_logs al
+JOIN users u ON al.user_id = u.user_id
+WHERE u.email = 'resident@example.com'
+ORDER BY al.timestamp DESC;
+```
+
+
+
+
+
+1. User opens login.php
+2. Enters: resident@example.com / Test123456
+3. login_process.php:
+   - ✓ Queries users table with email
+   - ✓ Verifies password with bcrypt
+   - ✓ UPDATES last_login to NOW()
+   - ✓ INSERTS 'login' action to activity_logs
+   - ✓ Sets $_SESSION['email'] = 'resident@example.com'
+   - ✓ Redirects to dashboard.php
+
+4. User views dashboard
+5. User clicks "Schedule Appointment"
+6. schedule_appointment.php:
+   - ✓ Validates appointment data
+   - ✓ INSERTS appointment to appointments table
+   - ✓ INSERTS 'scheduled_appointment' to activity_logs
+   - ✓ User email from $_SESSION is logged
+
+7. User views appointments at view_appointments.php
+   - ✓ Shows email: resident@example.com
+   - ✓ Lists all user's appointments
+   - ✓ Can cancel appointments
+
+8. User logs out
+9. logout.php:
+   - ✓ INSERTS 'logout' action to activity_logs
+   - ✓ Destroys session
+   - ✓ Redirects to landing.php
+
+
+Admin checks phpMyAdmin activity_logs table:
+- Sees: resident@example.com logged in at 14:30:00
+- Sees: resident@example.com scheduled appointment at 14:31:15
+- Sees: resident@example.com logged out at 14:32:00
+
+Admin checks users table:
+- resident@example.com last_login: 2026-06-08 14:32:00
+
+
+
+
+✓ Database created: scancare_db
+✓ SQL schema imported: SCANCARE_COMPLETE_DATABASE.sql
+✓ users table exists with test users
+✓ appointments table exists
+✓ services table exists with 6 services
+✓ activity_logs table exists
+✓ login_process.php updates last_login ✓
+✓ logout.php logs logout action ✓
+✓ schedule_appointment.php processes appointments ✓
+✓ view_appointments.php displays user's appointments ✓
+✓ cancel_appointment.php handles cancellation ✓
+✓ Email captured accurately in session ✓
+✓ All actions logged to activity_logs ✓
+
+
+
+
+
+1. Go to http:
+2. Login with: resident@example.com / Test123456
+3. Open phpMyAdmin → users table
+4. Check last_login - should now show current timestamp
+5. Logout
+
+
+1. Login again
+2. Go to view_appointments.php (or add form to dashboard)
+3. Schedule an appointment:
+   - Service: Vaccination Program
+   - Date: 2026-06-15
+   - Time: 10:00
+   - Reason: Booster shot
+4. Check phpMyAdmin → appointments table
+   - Should see new appointment record
+5. Check phpMyAdmin → activity_logs table
+   - Should see 'login' and 'scheduled_appointment' entries
+
+
+1. Go to view_appointments.php
+2. See your email displayed: resident@example.com
+3. This email matches your login email
+
+
+1. Perform login, schedule appointment, logout
+2. Go to phpMyAdmin → activity_logs
+3. Should see 3 entries with timestamps
+4. IP address should be 127.0.0.1 (localhost)
+
+
+
+
+ERROR: "Column 'appointments' doesn't exist"
+FIX: Make sure you ran the complete SQL script
+
+ERROR: "Undefined function getDatabaseConnection"
+FIX: Make sure db_config.php is properly included with: require_once 'db_config.php';
+
+ERROR: "Access denied for user 'root'"
+FIX: Update db_config.php with correct database password
+
+ISSUE: Last login still shows NULL
+FIX: Test users haven't logged in yet. Log in with test account to update it.
+
+ISSUE: Email not showing in view_appointments
+FIX: Make sure session_start() is called at top of view_appointments.php
+
+ISSUE: Appointment not being saved
+FIX: Check that services table has data (run SQL script)
+
+
+
+
+✓ SCANCARE_COMPLETE_DATABASE.sql
+  → Copy and paste entire contents into phpMyAdmin
+
+✓ login_process.php (UPDATED)
+  → Already updates last_login on successful login
+
+✓ logout.php (FIXED)
+  → Already logs logout action
+
+✓ schedule_appointment.php (NEW)
+  → Processes appointment scheduling requests
+
+✓ view_appointments.php (NEW)
+  → Displays user's appointments with accurate email
+
+✓ cancel_appointment.php (NEW)
+  → Handles appointment cancellation
+
+✓ db_config.php (exists)
+  → Database configuration - no changes needed
+
+
+
+
+Your ScanCare system now has:
+✅ Complete user authentication with last_login tracking
+✅ Accurate email capture from login
+✅ Appointment scheduling system
+✅ Complete activity audit trail
+✅ Database monitoring capabilities
+✅ All data persisted to database
+
+Test it out and monitor the database to see everything working!
+============================================================================
+*/
+

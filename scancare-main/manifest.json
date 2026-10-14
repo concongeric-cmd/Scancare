@@ -1,0 +1,17 @@
+{
+  "name": "ScanCare Resident",
+  "short_name": "ScanCare",
+  "start_url": "dashboard.php",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8faf6",
+  "theme_color": "#454b1b",
+  "description": "Offline access to the ScanCare resident dashboard.",
+  "icons": [
+    {
+      "src": "images/SClogo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanCare Navigation Component</title>
+    <link rel="stylesheet" href="https:
+    <style>
+        
+        @import url('https:
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAF6;
+            color: #475569;
+        }
+
+        .font-heading {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        
+        nav.sc-navbar {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(69, 75, 27, 0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            z-index: 50;
+        }
+
+        .sc-nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 80px;
+            width: 100%;
+        }
+
+        
+        .sc-logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: inherit;
+            flex-shrink: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sc-logo-section:hover {
+            opacity: 0.8;
+        }
+
+        .sc-logo-img {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .sc-logo-text {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #1e293b;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .sc-logo-text .brand-accent {
+            color: #454B1B;
+        }
+
+        
+        .nav-links-desktop {
+            display: none !important;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 auto;
+            padding: 0 48px;
+        }
+
+        .nav-links-desktop a {
+            color: #454B1B;
+            text-decoration: none;
+            transition: color 0.3s ease, border-bottom-color 0.3s ease;
+            padding: 8px 0;
+            border-bottom: 2px solid transparent;
+            font-weight: 600;
+        }
+
+        .nav-links-desktop a:hover {
+            color: #3a3f14;
+            border-bottom-color: #454B1B;
+        }
+
+        
+        .nav-user-section-desktop {
+            display: none !important;
+            align-items: center;
+            gap: 16px;
+            border-left: 2px solid #454B1B;
+            padding-left: 24px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .nav-user-name {
+            color: #454B1B;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+
+        .nav-logout-btn {
+            background-color: #454B1B;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .nav-logout-btn:hover {
+            background-color: #35400a;
+        }
+
+        
+        .nav-hamburger-btn {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            padding: 8px 12px;
+            color: #475569;
+            transition: color 0.3s ease, background-color 0.3s ease;
+            margin-left: auto;
+            border-radius: 8px;
+        }
+
+        .nav-hamburger-btn:hover {
+            color: #454B1B;
+            background-color: rgba(69, 75, 27, 0.08);
+        }
+
+        .nav-hamburger-btn.active {
+            color: #454B1B;
+        }
+
+        .nav-hamburger-btn .burger-text {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+            display: none !important;
+            flex-direction: column;
+            border-top: 1px solid #e2e8f0;
+            background-color: white;
+            padding: 16px 24px;
+            gap: 12px;
+        }
+
+            color: #475569;
+            padding: 12px;
+            text-decoration: none;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            display: block;
+        }
+
+            background-color: #f1f5f9;
+            color: #454B1B;
+        }
+
+        .mobile-menu-divider {
+            border-top: 1px solid #e2e8f0;
+            margin-top: 12px;
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mobile-menu-user-name {
+            color: #454B1B;
+            font-weight: 600;
+            margin-bottom: 0;
+            padding: 12px;
+            white-space: nowrap;
+        }
+
+        .mobile-logout-btn {
+            background-color: #454B1B;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: block;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-logout-btn:hover {
+            background-color: #35400a;
+        }
+
+        
+        @media (min-width: 768px) {
+            .nav-links-desktop {
+                display: flex !important;
+            }
+
+            .nav-user-section-desktop {
+                display: flex !important;
+            }
+
+            .nav-hamburger-btn {
+                display: none !important;
+            }
+
+                display: none !important;
+            }
+
+            .sc-nav-container {
+                padding: 0 48px;
+            }
+        }
+
+        
+        .demo-section {
+            max-width: 1400px;
+            margin: 48px auto;
+            padding: 0 24px;
+        }
+
+        .demo-heading {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 24px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .demo-content {
+            background-color: white;
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            line-height: 1.6;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <!
+         UNIFIED GLOBAL NAVIGATION BAR COMPONENT
+         ═══════════════════════════════════════════════════════ 
+    <nav class="sc-navbar">
+        <div class="sc-nav-container">
+            
+            <!
+            <a href="landing.php" class="sc-logo-section" aria-label="ScanCare Home">
+                <img src="images/SClogo.png" alt="ScanCare Logo" class="sc-logo-img">
+                <span class="sc-logo-text">
+                    Scan<span class="brand-accent">Care</span>
+                </span>
+            </a>
+
+            <!
+            <div class="nav-links-desktop">
+                <a href="submit-appointment.php">Appointment</a>
+                <a href="system-goals.php">System Goals</a>
+                <a href="service-areas.php">Service Areas</a>
+                <a href="surveillance.php">Surveillance</a>
+                <a href="compliance.php">Compliance</a>
+            </div>
+
+            <!
+            <div class="nav-user-section-desktop">
+                <div class="nav-user-name" id="desktopUserName">Guest</div>
+                <button class="nav-logout-btn" id="desktopLogoutBtn" onclick="handleLogout()">Log Out</button>
+            </div>
+
+            <!
+            <button id="toggleBtn" class="nav-hamburger-btn" aria-label="Toggle mobile menu">
+                <i class="fa-solid fa-bars"></i>
+                <span class="burger-text">Menu</span>
+            </button>
+        </div>
+
+        <!
+        <div id="mobileMenuPanel">
+            <a href="submit-appointment.php">Appointment</a>
+            <a href="system-goals.php">System Goals</a>
+            <a href="service-areas.php">Service Areas</a>
+            <a href="surveillance.php">Surveillance</a>
+            <a href="compliance.php">Compliance</a>
+
+            <div class="mobile-menu-divider">
+                <div class="mobile-menu-user-name" id="mobileUserName">Guest</div>
+                <button class="mobile-logout-btn" id="mobileLogoutBtn" onclick="handleLogout()">Log Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <!
+         DEMO SECTION (Remove or customize as needed)
+         ═══════════════════════════════════════════════════════ 
+    <div class="demo-section">
+        <h2 class="demo-heading">Unified Navigation Component - Ready to Deploy</h2>
+        <div class="demo-content">
+            <p><strong>Purpose:</strong> This is a fully responsive, self-contained navigation bar component for ScanCare dashboards.</p>
+            
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-weight: 600;">Features:</h3>
+            <ul style="margin-left: 20px; margin-bottom: 16px;">
+                <li>✓ Responsive design: Horizontal menu on desktop (768px+), hamburger toggle on mobile</li>
+                <li>✓ 4 main navigation items: System Goals, Service Areas, Surveillance, Compliance</li>
+                <li>✓ Right-aligned user profile dropdown with logout functionality</li>
+                <li>✓ Sticky positioning for persistent access</li>
+                <li>✓ Client-side session name management via sessionStorage</li>
+                <li>✓ Smooth animations and hover states</li>
+                <li>✓ Inline CSS for reliability - no external dependencies</li>
+            </ul>
+
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-weight: 600;">Integration Instructions:</h3>
+            <ol style="margin-left: 20px; line-height: 1.8;">
+                <li>Copy the entire <code>&lt;nav&gt;</code> block to the top of your dashboard pages.</li>
+                <li>Ensure the ScanCare logo image exists at <code>images/SClogo.png</code>.</li>
+                <li>Call <code>updateNavbarName()</code> after user login to display the user's name.</li>
+                <li>The navbar automatically reads/writes user names from sessionStorage.</li>
+            </ol>
+
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-weight: 600;">JavaScript Functions:</h3>
+            <p><code>updateNavbarName(userName)</code> - Updates the navbar display name on desktop and mobile menus.</p>
+            <p><code>handleLogout()</code> - Clears session data and redirects to login page.</p>
+            <p><code>initializeNavbar()</code> - Initializes mobile menu toggle and loads saved username.</p>
+        </div>
+    </div>
+
+    <!
+         VANILLA JAVASCRIPT - NAVBAR FUNCTIONALITY
+         ═══════════════════════════════════════════════════════ 
+    <script>
+        
+        function formatUserName(firstName, lastName, middleInitial = '') {
+            let formatted = `${lastName}, ${firstName}`;
+            if (middleInitial && middleInitial.trim()) {
+                const initial = middleInitial.trim().charAt(0).toUpperCase();
+                formatted += ` ${initial}.`;
+            }
+            return formatted;
+        }
+
+        
+        function initializeNavbar() {
+            const toggleBtn = document.getElementById('toggleBtn');
+            const mobileMenuPanel = document.getElementById('mobileMenuPanel');
+            
+            
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function () {
+                    const isVisible = mobileMenuPanel.style.display === 'flex';
+                    mobileMenuPanel.style.display = isVisible ? 'none' : 'flex';
+                    toggleBtn.classList.toggle('active', !isVisible);
+                });
+            }
+
+            
+            const savedUserName = sessionStorage.getItem('scancare_user_name');
+            if (savedUserName) {
+                updateNavbarName(savedUserName);
+            }
+
+            
+            const mobileLinks = mobileMenuPanel?.querySelectorAll('a');
+            if (mobileLinks) {
+                mobileLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        mobileMenuPanel.style.display = 'none';
+                        if (toggleBtn) toggleBtn.classList.remove('active');
+                    });
+                });
+            }
+        }
+
+        
+        function updateNavbarName(userNameData) {
+            const desktopName = document.getElementById('desktopUserName');
+            const mobileName = document.getElementById('mobileUserName');
+            
+            let displayName = '';
+            
+            
+            if (typeof userNameData === 'object' && userNameData !== null) {
+                displayName = formatUserName(
+                    userNameData.firstName || '',
+                    userNameData.lastName || '',
+                    userNameData.middleInitial || ''
+                );
+            } else {
+                
+                displayName = String(userNameData);
+            }
+            
+            if (desktopName) desktopName.textContent = displayName;
+            if (mobileName) mobileName.textContent = displayName;
+            
+            
+            sessionStorage.setItem('scancare_user_name', displayName);
+        }
+
+        
+        function handleLogout() {
+            sessionStorage.removeItem('scancare_user_name');
+            sessionStorage.removeItem('scancare_user_email');
+            
+            window.location.href = 'mock-login.html';
+        }
+
+        
+        document.addEventListener('DOMContentLoaded', initializeNavbar);
+    </script>
+
+</body>
+</html>
+

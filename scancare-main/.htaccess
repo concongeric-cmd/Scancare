@@ -1,0 +1,22 @@
+Options -Indexes
+DirectoryIndex index.php
+
+<FilesMatch "(?i)(^\.|\.(?:env|ini|log|sql|md|txt|lock)$|^(?:package(?:-lock)?\.json|server\.js)$)">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "(?i)^(?:DEBUG_.*|TEST[-_].*|RESET_.*|RESTORE_.*|CREATE_TEST_.*|CHECK_ADMIN_.*|CHECK_SCHEMA|CHECK_TABLE_STRUCTURE_DEBUG|CHECK_SERVICES|CHECK_6DIGIT_MIGRATION_STATUS|check_admins|check_appointments|check_resident_columns|check_table_structure|FIX_.*|fix_database|final_cleanup|FINAL_CLEANUP_FIX|DIAGNOSTIC_.*|diagnose_.*|DATABASE_ANALYSIS|PHPMYADMIN_SETUP_GUIDE|SECURE_PASSWORD_REFERENCE|ADMIN_SETUP_READY|ADMIN_START_HERE|INIT_DATABASE|setup[-_].*|auto_migrate_profile_picture|database_migration_helper|migrate_profile_pix|MIGRATE_ADD_MIDDLE_INITIAL|direct-create-user|quick-create-user|create_admin|create_admin_account|create_user|create_user_simple|CREATE_MORE_ACCOUNTS|full_db_check|SHOW_EXACT_DATABASE_STRUCTURE|TABLE_STRUCTURE|verify_admin_credentials|verify_database|verify_status_update|tmp_.*)\.php$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:\.git|\.vscode|database|logs|node_modules|storage|tools|frontend)/ - [F,L,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
+</IfModule>

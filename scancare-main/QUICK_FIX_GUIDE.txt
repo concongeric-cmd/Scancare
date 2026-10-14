@@ -1,0 +1,326 @@
+
+
+
+
+Problem:
+- ❌ Login actions not recorded in activity_logs
+- ❌ last_login stays NULL after login
+- ❌ Appointment scheduling not saved
+
+Reason:
+- Database operations are executing but failing silently
+- Need to verify what's actually working vs broken
+
+Solution:
+- Use diagnostic test script
+- Follow troubleshooting steps
+- Fix the specific issue
+
+
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: RUN DATABASE DIAGNOSTIC TEST (2 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Open browser and go to:
+   http:
+
+2. Look for these 7 test results:
+   ✓ TEST 1: Database Connection
+   ✓ TEST 2: Check Users Table
+   ✓ TEST 3: Check Activity Logs Table
+   ✓ TEST 4: Test UPDATE Query
+   ✓ TEST 5: Test INSERT Query
+   ✓ TEST 6: Check Services Table
+   ✓ TEST 7: Check Appointments Table
+
+3. Note which tests FAIL (show ✗):
+   - Write down the exact error message
+   
+→ Go to STEP 2
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: IF TEST 1 FAILS - Fix Database Connection (3 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+If you see: "✗ FAILED: Could not connect to database"
+
+ACTION:
+1. Open: c:\xampp\htdocs\itelec4\db_config.php
+2. Check these lines:
+   
+   define('DB_HOST', 'localhost');
+   define('DB_USER', 'root');
+   define('DB_PASS', '');
+   define('DB_NAME', 'scancare_db');
+
+3. Make sure:
+   - DB_HOST = 'localhost' ✓
+   - DB_USER = 'root' ✓
+   - DB_PASS matches your MySQL password
+   - DB_NAME = 'scancare_db' ✓
+
+4. If MySQL has a password:
+   Change: define('DB_PASS', '');
+   To:     define('DB_PASS', 'your_password_here');
+
+5. Refresh test page: 
+   http:
+
+6. If still fails, database is down or credentials wrong
+   - Check MySQL is running in XAMPP Control Panel
+   - Check phpMyAdmin password in browser
+
+→ Go to STEP 3
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: IF TEST 2, 3, 6, or 7 FAIL - Create Database Schema (5 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+If you see: "✗ FAILED: [table name] doesn't exist"
+
+ACTION:
+1. Open phpMyAdmin: http:
+2. Make sure "scancare_db" database exists in left sidebar
+   - If not, create it: New → database name → Create
+3. Click on "scancare_db" database
+4. Click "SQL" tab at top
+5. Open this file:
+   c:\xampp\htdocs\itelec4\SCANCARE_COMPLETE_DATABASE.sql
+6. Copy the ENTIRE contents
+7. Paste into phpMyAdmin SQL editor (white text area)
+8. Click "Go" button at bottom right
+9. Wait for "0 errors" message
+10. Refresh test page:
+    http:
+
+Result: All table tests should now pass
+
+→ Go to STEP 4
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: IF TEST 4 or 5 FAIL - Fix Database Permissions (3 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+If you see: "✗ FAILED: UPDATE/INSERT query did not execute"
+
+ACTION - Check Permissions:
+1. Open phpMyAdmin: http:
+2. Click "Users" at top
+3. Find 'root' user in list
+4. Click "Edit privileges" (pencil icon)
+5. Scroll to "Data" section
+6. Make sure these are checked:
+   ☑ SELECT
+   ☑ INSERT
+   ☑ UPDATE
+   ☑ DELETE
+7. Click "Go" to save
+8. Refresh test page:
+   http:
+
+Result: UPDATE and INSERT tests should now pass
+
+→ Go to STEP 5
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: TEST ACTUAL LOGIN (3 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+If all diagnostic tests pass (all show ✓):
+
+ACTION - Login Test:
+1. Before logging in, note the count:
+   Go to: http:
+   Look for: "Total activity logs: X" (note the number)
+
+2. Open login page:
+   http:
+
+3. Enter credentials:
+   Email: resident@example.com
+   Password: Test123456
+
+4. Click Login
+
+5. You should see the dashboard
+
+6. After successful login, go back to test page:
+   http:
+
+7. Check:
+   - "Total activity logs:" should have INCREASED by 1 ✓
+   - resident@example.com "Last Login" should show timestamp ✓
+   - Latest log should show "login" action ✓
+
+SUCCESS ✓:
+- Database operations are working!
+- Go to phpMyAdmin to verify and monitor
+
+FAILURE ❌:
+- If not updated, check login_debug.log:
+  c:\xampp\htdocs\itelec4\login_debug.log
+- Look for [ERROR] or [EXCEPTION] lines
+- Go to STEP 6
+
+→ Go to STEP 6
+
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6: VERIFY WITH phpmyAdmin (2 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+ACTION - Manual Verification:
+1. Open phpMyAdmin: http:
+2. Select "scancare_db" database
+3. Click "users" table
+4. Look at resident@example.com row:
+   - last_login column should show: "2026-06-08 14:30:45" (or similar timestamp)
+   - If still NULL: database operation not working, check login_debug.log
+
+5. Click "activity_logs" table
+6. Should see new "login" entries at bottom:
+   - user_id: 1
+   - user_role_snapshot: resident
+   - action_type: login
+   - timestamp: recent time
+
+SUCCESS ✓:
+- Everything is working!
+- Monitor database regularly to see activity
+
+FAILURE ❌:
+- Check login_debug.log for specific error message
+- Share error with developer
+
+
+
+
+When everything is working:
+
+✓ User logs in with: resident@example.com
+  → last_login updates automatically
+  → activity_logs records 'login' action
+
+✓ User schedules appointment
+  → appointments table gets new record
+  → activity_logs records 'scheduled_appointment'
+
+✓ User cancels appointment
+  → appointment status changes to 'canceled'
+  → activity_logs records 'canceled_appointment'
+
+✓ User logs out
+  → activity_logs records 'logout' action
+
+All actions appear in phpMyAdmin within seconds!
+
+
+
+
+TO TEST:
+→ test_database_operations.php
+  URL: http:
+
+TO FIX DATABASE:
+→ SCANCARE_COMPLETE_DATABASE.sql
+  Location: c:\xampp\htdocs\itelec4\SCANCARE_COMPLETE_DATABASE.sql
+  Use in phpMyAdmin SQL tab
+
+TO DEBUG LOGIN:
+→ login_debug.log
+  Location: c:\xampp\htdocs\itelec4\login_debug.log
+  Created automatically on first login
+
+TO DEBUG LOGOUT:
+→ logout_debug.log
+  Location: c:\xampp\htdocs\itelec4\logout_debug.log
+  Created automatically on first logout
+
+TO VIEW DATA:
+→ phpMyAdmin
+  URL: http:
+
+
+
+
+Before you start:
+☐ XAMPP running (MySQL service ON)
+☐ phpMyAdmin accessible
+☐ Database scancare_db exists
+
+After STEP 1 (Run Diagnostic):
+☐ Noted which tests FAILED
+☐ Noted exact error messages
+
+After STEP 2 (Fix Connection):
+☐ TEST 1 now shows SUCCESS
+
+After STEP 3 (Create Schema):
+☐ TEST 2, 3, 6, 7 now show SUCCESS
+
+After STEP 4 (Fix Permissions):
+☐ TEST 4, 5 now show SUCCESS
+
+After STEP 5 (Test Login):
+☐ Successfully logged in
+☐ activity_logs count increased
+☐ resident@example.com last_login updated
+
+After STEP 6 (phpMyAdmin Verify):
+☐ Can see login records in phpMyAdmin
+☐ Can see last_login timestamp in users table
+
+
+
+
+Problem: login_debug.log doesn't exist
+Solution: Try logging in first. File is created on first attempt.
+
+Problem: ERROR "Table 'scancare_db.xyz' doesn't exist"
+Solution: Run SQL schema (STEP 3). All 5 tables must exist.
+
+Problem: ERROR "Access denied for user 'root'"
+Solution: Check MySQL password. Update DB_PASS in db_config.php (STEP 2).
+
+Problem: Tests pass but login still doesn't record
+Solution: Check login_debug.log file. Share exact error message.
+
+Problem: Can't find login_debug.log file
+Solution: File is at: c:\xampp\htdocs\itelec4\login_debug.log
+         Windows Explorer → Navigate to folder → Look for file
+
+Problem: phpMyAdmin shows no changes after login
+Solution: Click "Refresh" in phpMyAdmin or refresh browser (CTRL+F5)
+
+
+
+
+You'll know it's working when you see:
+
+LOGIN: 
+→ last_login timestamp appears in users table ✓
+
+APPOINTMENT:
+→ New appointment record in appointments table ✓
+→ New 'scheduled_appointment' in activity_logs ✓
+
+LOGOUT:
+→ New 'logout' entry in activity_logs ✓
+
+MONITORING:
+→ All entries show correct user email ✓
+→ All entries show correct timestamps ✓
+→ All entries show correct action types ✓
+
+
+═══════════════════════════════════════════════════════════════════════════════
+READY? Start with STEP 1 above!
+═══════════════════════════════════════════════════════════════════════════════
+*/
+
