@@ -26,15 +26,15 @@ if (!isset($rhuStatus)) {
             'bgClass' => 'bg-emerald-50',
             'textClass' => 'text-emerald-700',
             'dotClass' => 'bg-emerald-500',
-            'message' => 'RHU is Now Open | will close at 5PM'
+            'message' => 'RHU II is Now Open | will close at 5PM'
         ];
     } else {
         if ($isWeekday && $currentHour < 8) {
-            $message = 'RHU is Closed | Will resume today at 8am';
+            $message = 'RHU II is Closed | Will resume today at 8am';
         } elseif ($isWeekday && $currentHour >= 17) {
-            $message = 'RHU is Closed | Will resume tomorrow at 8am';
+            $message = 'RHU II is Closed | Will resume tomorrow at 8am';
         } else {
-            $message = 'RHU is Closed | Will resume Monday at 8am';
+            $message = 'RHU II is Closed | Will resume Monday at 8am';
         }
         
         $rhuStatus = [
@@ -1113,7 +1113,7 @@ function updateRHUStatus() {
         bgClass = 'bg-emerald-50';
         textClass = 'text-emerald-700';
         dotClass = 'bg-emerald-500';
-        message = 'RHU is Now Open | will close at 5PM';
+        message = 'RHU II is Now Open | will close at 5PM';
         shouldPulse = true;
     } else {
         borderClass = 'border-slate-300';
@@ -1123,11 +1123,11 @@ function updateRHUStatus() {
         shouldPulse = false;
         
         if (isWeekday && hours < 8) {
-            message = 'RHU is Closed | Will resume today at 8am';
+            message = 'RHU II is Closed | Will resume today at 8am';
         } else if (isWeekday && hours >= 17) {
-            message = 'RHU is Closed | Will resume tomorrow at 8am';
+            message = 'RHU II is Closed | Will resume tomorrow at 8am';
         } else {
-            message = 'RHU is Closed | Will resume Monday at 8am';
+            message = 'RHU II is Closed | Will resume Monday at 8am';
         }
     }
     

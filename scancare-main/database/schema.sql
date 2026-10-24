@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS `appointment` (
     `service_id` INT NULL,
     `appointment_date` DATE NOT NULL,
     `appointment_time` TIME NOT NULL,
+    `patient_number` INT UNSIGNED NULL,
     `purpose` VARCHAR(500) NOT NULL,
     `status` VARCHAR(50) NOT NULL DEFAULT 'pending',
     `notes` TEXT NULL,
@@ -133,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `appointment` (
     KEY `idx_appointment_worker` (`health_worker_id`),
     KEY `idx_appointment_service` (`service_id`),
     KEY `idx_appointment_date_status` (`appointment_date`, `status`),
+    KEY `idx_appointment_slot_queue` (`appointment_date`, `appointment_time`, `patient_number`),
     CONSTRAINT `fk_appointment_resident` FOREIGN KEY (`resident_id`) REFERENCES `resident` (`resident_id`) ON DELETE CASCADE,
     CONSTRAINT `fk_appointment_worker` FOREIGN KEY (`health_worker_id`) REFERENCES `health_worker` (`worker_id`) ON DELETE SET NULL,
     CONSTRAINT `fk_appointment_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE SET NULL

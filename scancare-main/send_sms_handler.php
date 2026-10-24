@@ -24,7 +24,7 @@ error_log("Database connected successfully");
 // --- CONFIG ---
 define('SEMAPHORE_API_KEY', getEnvironmentValue('SEMAPHORE_API_KEY'));
 define('SEMAPHORE_SENDER',  getEnvironmentValue('SEMAPHORE_SENDER', 'SCANCARE'));  // max 11 chars, registered in Semaphore
-define('SEMAPHORE_API_URL', 'https://semaphore.co/api/v4/messages');
+define('SEMAPHORE_API_URL', 'https://api.semaphore.co/api/v4/messages');
 
 function logSmsResult(PDO $pdo, int $workerId, string $recipient, string $message, string $status, int $responseCode, string $responseBody, string $mode): void {
     $columns = $pdo->query('SHOW COLUMNS FROM sms_log')->fetchAll(PDO::FETCH_COLUMN);
@@ -139,8 +139,8 @@ try {
         throw new Exception('No valid recipients found.');
     }
 
-    // --- SEND IN BATCHES OF 1000 ---
-    $batches   = array_chunk($numbers, 1000);
+    // Smaller provider batches isolate a malformed recipient or temporary API limit.
+    $batches   = array_chunk($numbers, 100);
     $sent      = 0;
     $failed    = 0;
     $responses = [];
@@ -154,7 +154,7 @@ try {
             'apikey'     => SEMAPHORE_API_KEY,
             'number'     => implode(',', $batch),
             'message'    => $message,
-            'SenderName' => SEMAPHORE_SENDER,
+            'sendername' => SEMAPHORE_SENDER,
         ]);
 
         $ch = curl_init(SEMAPHORE_API_URL);
@@ -182,6 +182,11 @@ try {
         if (!empty($curlErr)) {
             error_log("cURL Error: $curlErr");
             throw new Exception("cURL Error: $curlErr");
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            error_log("Semaphore rejected SMS batch with HTTP code: $httpCode");
+            throw new Exception("SMS provider rejected the request (HTTP $httpCode).");
         }
 
         $result = json_decode($response, true);

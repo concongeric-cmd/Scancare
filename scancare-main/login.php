@@ -411,6 +411,7 @@ function findUserByIdentifier(PDO $pdo, $identifier) {
 
 $error = '';
 $success = '';
+$signupOld = [];
 $signupNotice = $_SESSION['signup_notice'] ?? '';
 unset($_SESSION['signup_notice']);
 if ($signupNotice !== '') {
@@ -560,13 +561,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'signup') {
         $full_name = trim($_POST['full_name'] ?? '');
+        $signupOld = [
+            'full_name' => $_POST['full_name'] ?? '',
+            'date_of_birth' => $_POST['date_of_birth'] ?? '',
+            'sex' => $_POST['sex'] ?? '',
+            'user_role' => $_POST['user_role'] ?? '',
+            'street_address' => $_POST['street_address'] ?? '',
+            'barangay' => $_POST['barangay'] ?? '',
+            'city' => $_POST['city'] ?? '',
+            'postal_code' => $_POST['postal_code'] ?? '',
+            'address' => $_POST['address'] ?? '',
+            'email' => $_POST['email'] ?? '',
+            'phone' => $_POST['phone'] ?? '',
+            'signup_mode' => $_POST['signup_mode'] ?? 'email'
+        ];
         // Parse first and last name from full name
-        $name_parts = array_filter(explode(' ', $full_name));
+        $name_parts = preg_split('/\s+/u', $full_name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $first_name = !empty($name_parts) ? array_shift($name_parts) : '';
         $last_name = !empty($name_parts) ? implode(' ', $name_parts) : $first_name;
         $email = trim($_POST['email'] ?? '');
-        $password = trim($_POST['password'] ?? '');
-        $password_confirm = trim($_POST['password_confirm'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
         $user_role = trim($_POST['user_role'] ?? 'resident');
         $date_of_birth = trim($_POST['date_of_birth'] ?? '');
         $address = trim($_POST['address'] ?? '');
@@ -588,11 +603,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $errors = [];
-        if ($full_name === '') {
-            $errors[] = 'Full name is required.';
+        if ($full_name === '' || preg_match('/\p{L}/u', $full_name) !== 1) {
+            $errors[] = 'Full name is required and must contain letters.';
+        } elseif (preg_match('/^\p{L}+(?:\h+\p{L}+)*$/u', $full_name) !== 1) {
+            $errors[] = 'Name may contain letters and single spaces between names only.';
         }
-        if ($password === '' || strlen($password) < 6) {
-            $errors[] = 'Password must be at least 6 characters.';
+        $passwordHasUppercase = preg_match('/[A-Z]/', $password) === 1;
+        $passwordHasLowercase = preg_match('/[a-z]/', $password) === 1;
+        $passwordHasNumber = preg_match('/[0-9]/', $password) === 1;
+        $passwordHasSpecial = preg_match('/[^A-Za-z0-9\s]/', $password) === 1;
+        if (preg_match('/\s/', $email) === 1) {
+            $errors[] = 'Email address cannot contain spaces.';
+        }
+        if (preg_match('/\s/', $contact_number) === 1) {
+            $errors[] = 'Phone number cannot contain spaces.';
+        }
+        if (preg_match('/\s/', $password) === 1 || preg_match('/\s/', $password_confirm) === 1) {
+            $errors[] = 'Password and confirmation cannot contain spaces.';
+        }
+        if (strlen($password) < 6 || !$passwordHasUppercase || !$passwordHasLowercase || !$passwordHasNumber || !$passwordHasSpecial) {
+            $errors[] = 'Password must be at least 6 characters and include an uppercase letter, a lowercase letter, a number, and a special character.';
         }
         if ($password !== $password_confirm) {
             $errors[] = 'Passwords do not match.';
@@ -1282,30 +1312,30 @@ $success = $success ?? '';
                         <!-- Full Name Field (NEW SCHEMA) -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Full Name *</label>
-                            <input type="text" name="full_name" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="Juan Dela Cruz">
-                            <p class="text-xs text-slate-500 mt-1">Enter your complete name as you prefer to be called</p>
+                            <input id="signupFullName" type="text" name="full_name" required pattern="[\p{L}]+(\h+[\p{L}]+)*" title="Use letters and single spaces between names only." value="<?php echo htmlspecialchars((string) ($signupOld['full_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="Juan Dela Cruz" autocomplete="name" onkeydown="if (event.key === ' ' && (this.selectionStart === 0 || this.value.slice(0, this.selectionStart).endsWith(' '))) event.preventDefault();" oninput="this.value = this.value.replace(/[^\p{L}\s]/gu, '').replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');">
+                            <p class="text-xs text-slate-500 mt-1">Use letters and spaces only.</p>
                         </div>
 
                         <div>
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Date of Birth *</label>
-                            <input type="date" name="date_of_birth" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" title="Select your date of birth">
+                            <input type="date" name="date_of_birth" required value="<?php echo htmlspecialchars((string) ($signupOld['date_of_birth'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" title="Select your date of birth">
                         </div>
 
                         <div id="sexFieldContainer" class="transition-all duration-300">
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Biological Sex *</label>
                             <select id="sexSelect" name="sex" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all bg-white">
-                                <option value="">Select sex</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
+                                <option value="" <?php echo ($signupOld['sex'] ?? '') === '' ? 'selected' : ''; ?>>Select sex</option>
+                                <option value="male" <?php echo ($signupOld['sex'] ?? '') === 'male' ? 'selected' : ''; ?>>Male</option>
+                                <option value="female" <?php echo ($signupOld['sex'] ?? '') === 'female' ? 'selected' : ''; ?>>Female</option>
                             </select>
                         </div>
 
                         <div>
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Select Your Role *</label>
                             <select id="roleSelect" name="user_role" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all appearance-none bg-white" style="background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 20 20%22%3E%3Cpath stroke=%22%236b7280%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%221.5%22 d=%22M6 8l4 4 4-4%22/%3E%3C/svg%3E'); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem;">
-                                <option value="">-- Choose Your Role --</option>
-                                <option value="resident">👤 Resident (Patient)</option>
-                                <option value="health_worker">👨‍⚕️ Barangay Health Worker (BHW)</option>
+                                <option value="" <?php echo ($signupOld['user_role'] ?? '') === '' ? 'selected' : ''; ?>>-- Choose Your Role --</option>
+                                <option value="resident" <?php echo ($signupOld['user_role'] ?? '') === 'resident' ? 'selected' : ''; ?>>👤 Resident (Patient)</option>
+                                <option value="health_worker" <?php echo ($signupOld['user_role'] ?? '') === 'health_worker' ? 'selected' : ''; ?>>👨‍⚕️ Barangay Health Worker (BHW)</option>
                             </select>
                             <p class="text-xs text-slate-500 mt-1">You cannot change this after registration. Choose carefully.</p>
                         </div>
@@ -1316,36 +1346,36 @@ $success = $success ?? '';
                                 <!-- Street Address -->
                                 <div>
                                     <label class="block text-sm font-semibold text-slate-900 mb-2.5">Street Address *</label>
-                                    <input type="text" id="streetAddress" name="street_address" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., 67, San Antonio, Spurs">
+                                    <input type="text" id="streetAddress" name="street_address" value="<?php echo htmlspecialchars((string) ($signupOld['street_address'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., 67, San Antonio, Spurs">
                                 </div>
                                 
                                 <!-- Barangay -->
                                 <div>
                                     <label class="block text-sm font-semibold text-slate-900 mb-2.5">Barangay *</label>
-                                    <input type="text" id="barangay" name="barangay" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., San Antonio">
+                                    <input type="text" id="barangay" name="barangay" value="<?php echo htmlspecialchars((string) ($signupOld['barangay'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., San Antonio">
                                 </div>
                                 
                                 <!-- City -->
                                 <div>
                                     <label class="block text-sm font-semibold text-slate-900 mb-2.5">City *</label>
-                                    <input type="text" id="city" name="city" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., Spurs">
+                                    <input type="text" id="city" name="city" value="<?php echo htmlspecialchars((string) ($signupOld['city'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., Spurs">
                                 </div>
                                 
                                 <!-- Province / Postal Code -->
                                 <div>
                                     <label class="block text-sm font-semibold text-slate-900 mb-2.5">Province / Postal Code *</label>
-                                    <input type="text" id="postalCode" name="postal_code" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., 2004">
+                                    <input type="text" id="postalCode" name="postal_code" value="<?php echo htmlspecialchars((string) ($signupOld['postal_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="e.g., 2004">
                                 </div>
                             </div>
                             <!-- Hidden field for backward compatibility -->
-                            <input type="hidden" id="addressField" name="address">
+                            <input type="hidden" id="addressField" name="address" value="<?php echo htmlspecialchars((string) ($signupOld['address'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                         </div>
 
-                        <input type="hidden" name="signup_mode" id="signupModeInput" value="email">
+                        <input type="hidden" name="signup_mode" id="signupModeInput" value="<?php echo htmlspecialchars((string) ($signupOld['signup_mode'] ?? 'email'), ENT_QUOTES, 'UTF-8'); ?>">
 
                         <div id="emailFieldGroup">
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Email Address</label>
-                            <input type="email" name="email" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="your.email@example.com">
+                            <input type="email" name="email" required value="<?php echo htmlspecialchars((string) ($signupOld['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="your.email@example.com" onkeydown="if (event.key === ' ') event.preventDefault();" oninput="this.value = this.value.replace(/\s/g, '');">
                             <button type="button" id="emailToggleLink" class="mt-2 text-sm font-semibold text-[#454B1B] hover:underline transition-colors">
                                 Don't have an email?
                             </button>
@@ -1353,7 +1383,7 @@ $success = $success ?? '';
 
                         <div id="phoneFieldGroup" class="mt-4">
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Phone Number</label>
-                            <input id="phoneInput" type="tel" name="phone" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="+63 912 345 6789">
+                            <input id="phoneInput" type="tel" name="phone" value="<?php echo htmlspecialchars((string) ($signupOld['phone'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="09123456789" onkeydown="if (event.key === ' ') event.preventDefault();" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 11);">
                             <p id="phoneOnlyMessage" class="mt-2 text-sm text-slate-500 hidden">Signup with phone number instead</p>
                             <button type="button" id="phoneToEmailLink" class="mt-2 text-sm font-semibold text-[#454B1B] hover:underline hidden">Signup with email?</button>
                         </div>
@@ -1361,18 +1391,24 @@ $success = $success ?? '';
                         <div>
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Password</label>
                             <div class="password-input-wrapper">
-                                <input type="password" name="password" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="••••••••" minlength="6">
+                                <input id="signupPassword" type="password" name="password" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="••••••••" minlength="6" pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{6,}" title="Use at least 6 characters with uppercase, lowercase, a number, and a special character." autocomplete="new-password" onkeydown="if (event.key === ' ') event.preventDefault();" oninput="this.value = this.value.replace(/\s/g, '');">
                                 <button type="button" class="password-toggle-btn" onclick="togglePassword(this)" title="Show/hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-500 mt-1">Minimum 6 characters</p>
+                            <ul id="signupPasswordRequirements" class="mt-2 grid grid-cols-1 gap-1 text-xs text-slate-500 sm:grid-cols-2" aria-live="polite">
+                                <li data-password-rule="length" class="flex items-center gap-2"><i class="fas fa-circle text-[8px]" aria-hidden="true"></i><span>At least 6 characters</span></li>
+                                <li data-password-rule="uppercase" class="flex items-center gap-2"><i class="fas fa-circle text-[8px]" aria-hidden="true"></i><span>One uppercase letter</span></li>
+                                <li data-password-rule="lowercase" class="flex items-center gap-2"><i class="fas fa-circle text-[8px]" aria-hidden="true"></i><span>One lowercase letter</span></li>
+                                <li data-password-rule="number" class="flex items-center gap-2"><i class="fas fa-circle text-[8px]" aria-hidden="true"></i><span>One number</span></li>
+                                <li data-password-rule="special" class="flex items-center gap-2"><i class="fas fa-circle text-[8px]" aria-hidden="true"></i><span>One special character</span></li>
+                            </ul>
                         </div>
 
                         <div>
                             <label class="block text-sm font-semibold text-slate-900 mb-2.5">Confirm Password</label>
                             <div class="password-input-wrapper">
-                                <input type="password" name="password_confirm" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="••••••••" minlength="6">
+                                <input type="password" name="password_confirm" required class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent transition-all" placeholder="••••••••" minlength="6" pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{6,}" title="Use at least 6 characters with uppercase, lowercase, a number, and a special character." onkeydown="if (event.key === ' ') event.preventDefault();" oninput="this.value = this.value.replace(/\s/g, '');">
                                 <button type="button" class="password-toggle-btn" onclick="togglePassword(this)" title="Show/hide password">
                                     <i class="fas fa-eye"></i>
                                 </button>
@@ -1380,8 +1416,8 @@ $success = $success ?? '';
                         </div>
 
                         <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <input type="checkbox" required class="w-4 h-4 rounded" style="accent-color: #454B1B;">
-                            <span class="text-sm text-slate-700">I agree to the <a href="compliance.php" style="color: #454B1B;" class="font-semibold hover:underline">Privacy Policy & Terms of Service</a></span>
+                            <input id="privacyConsent" type="checkbox" required class="w-4 h-4 shrink-0 rounded" style="accent-color: #454B1B;">
+                            <span class="text-sm text-slate-700">I agree to the <button type="button" onclick="openPrivacyTermsModal()" style="color: #454B1B;" class="font-semibold underline underline-offset-2">Privacy Policy &amp; Terms of Service</button></span>
                         </label>
 
                         <button type="submit" style="background-color: #454B1B;" class="w-full text-white font-semibold py-3 rounded-lg hover:opacity-95 transition-all shadow-md shadow-[#454B1B]/20">
@@ -1407,6 +1443,8 @@ $success = $success ?? '';
                             const city = document.getElementById('city');
                             const postalCode = document.getElementById('postalCode');
                             const form = document.querySelector('form');
+                            const fullNameInput = document.getElementById('signupFullName');
+                            const passwordInput = document.getElementById('signupPassword');
                             const emailFieldGroup = document.getElementById('emailFieldGroup');
                             const phoneFieldGroup = document.getElementById('phoneFieldGroup');
                             const emailInput = document.querySelector('#emailFieldGroup input[name="email"]');
@@ -1416,6 +1454,59 @@ $success = $success ?? '';
                             const signupModeInput = document.getElementById('signupModeInput');
                             const emailToggleLink = document.getElementById('emailToggleLink');
                             let usePhoneOnly = signupModeInput.value === 'phone_only';
+
+                            function sanitizeFullName() {
+                                if (!fullNameInput) return;
+                                const cursorPosition = fullNameInput.selectionStart;
+                                const originalValue = fullNameInput.value;
+                                const sanitizedValue = originalValue
+                                    .replace(/[^\p{L}\s]/gu, '')
+                                    .replace(/^\s+|\s+$/g, '')
+                                    .replace(/\s+/g, ' ');
+                                if (sanitizedValue !== originalValue) {
+                                    const beforeCursor = originalValue.slice(0, cursorPosition)
+                                        .replace(/[^\p{L}\s]/gu, '')
+                                        .replace(/^\s+|\s+$/g, '')
+                                        .replace(/\s+/g, ' ');
+                                    fullNameInput.value = sanitizedValue;
+                                    fullNameInput.setSelectionRange(beforeCursor.length, beforeCursor.length);
+                                }
+                            }
+
+                            function removeInputSpaces(input) {
+                                if (!input) return;
+                                const cursorPosition = input.selectionStart;
+                                const originalValue = input.value;
+                                const sanitizedValue = originalValue.replace(/\s/g, '');
+                                if (sanitizedValue !== originalValue) {
+                                    input.value = sanitizedValue;
+                                    input.setSelectionRange(Math.max(0, cursorPosition - (originalValue.length - sanitizedValue.length)), Math.max(0, cursorPosition - (originalValue.length - sanitizedValue.length)));
+                                }
+                            }
+
+                            function updatePasswordRequirements() {
+                                if (!passwordInput) return;
+                                const passwordValue = passwordInput.value;
+                                const rules = {
+                                    length: passwordValue.length >= 6,
+                                    uppercase: /[A-Z]/.test(passwordValue),
+                                    lowercase: /[a-z]/.test(passwordValue),
+                                    number: /[0-9]/.test(passwordValue),
+                                    special: /[^A-Za-z0-9\s]/.test(passwordValue)
+                                };
+
+                                Object.entries(rules).forEach(([rule, isSatisfied]) => {
+                                    const item = document.querySelector(`[data-password-rule="${rule}"]`);
+                                    if (!item) return;
+                                    item.classList.toggle('text-emerald-700', isSatisfied);
+                                    item.classList.toggle('font-semibold', isSatisfied);
+                                    item.classList.toggle('text-slate-500', !isSatisfied);
+                                    const icon = item.querySelector('i');
+                                    if (icon) icon.className = isSatisfied
+                                        ? 'fas fa-circle-check text-emerald-600'
+                                        : 'fas fa-circle text-[8px] text-slate-300';
+                                });
+                            }
 
                             function setSignupMode(phoneOnly) {
                                 usePhoneOnly = phoneOnly;
@@ -1429,9 +1520,6 @@ $success = $success ?? '';
                                 phoneOnlyMessage.classList.toggle('hidden', !phoneOnly);
                                 phoneOnlyMessage.textContent = 'Signup with phone number instead';
                                 phoneToEmailLink.classList.toggle('hidden', !phoneOnly);
-                                if (!phoneOnly) {
-                                    phoneInput.value = '';
-                                }
                             }
 
                             // Function to toggle address field visibility and required attribute
@@ -1452,10 +1540,6 @@ $success = $success ?? '';
                                     barangay.removeAttribute('required');
                                     city.removeAttribute('required');
                                     postalCode.removeAttribute('required');
-                                    streetAddress.value = '';
-                                    barangay.value = '';
-                                    city.value = '';
-                                    postalCode.value = '';
                                 }
 
                                 toggleSexField(selectedRole !== 'health_worker');
@@ -1483,7 +1567,19 @@ $success = $success ?? '';
                                 addressField.value = combined;
                             }
 
-                            // Add event listener to role select
+                            // Keep credentials and identifiers free of accidental whitespace.
+                            fullNameInput?.addEventListener('input', sanitizeFullName);
+                            emailInput?.addEventListener('input', () => removeInputSpaces(emailInput));
+                            phoneInput?.addEventListener('input', () => removeInputSpaces(phoneInput));
+                            passwordInput?.addEventListener('input', () => {
+                                removeInputSpaces(passwordInput);
+                                updatePasswordRequirements();
+                            });
+                            document.querySelector('input[name="password_confirm"]')?.addEventListener('input', function () {
+                                removeInputSpaces(this);
+                            });
+                            sanitizeFullName();
+                            updatePasswordRequirements();
                             roleSelect.addEventListener('change', toggleAddressField);
                             emailToggleLink.addEventListener('click', function (event) {
                                 event.preventDefault();
@@ -1494,9 +1590,17 @@ $success = $success ?? '';
                                 setSignupMode(false);
                             });
 
-                            // Combine address fields on form submit
+                            // Normalize and validate fields before submission.
                             if (form) {
-                                form.addEventListener('submit', function () {
+                                form.addEventListener('submit', function (event) {
+                                    sanitizeFullName();
+                                    if (fullNameInput && fullNameInput.value === '') {
+                                        event.preventDefault();
+                                        fullNameInput.setCustomValidity('Full name is required.');
+                                        fullNameInput.reportValidity();
+                                        return;
+                                    }
+                                    fullNameInput?.setCustomValidity('');
                                     combineAddressFields();
                                     if (usePhoneOnly) {
                                         emailInput.value = '';
@@ -1523,6 +1627,102 @@ $success = $success ?? '';
             </div>
         </section>
     </main>
+
+    <?php if ($is_signup): ?>
+    <div id="privacyTermsModal" class="fixed inset-0 z-[10050] hidden items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="privacyTermsTitle" aria-describedby="privacyTermsIntro">
+        <section class="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)] dark:border-slate-700 dark:bg-slate-900">
+            <header class="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 dark:border-slate-700">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-widest text-[#454B1B] dark:text-lime-300">ScanCare</p>
+                    <h2 id="privacyTermsTitle" class="mt-1 text-lg font-bold text-slate-900 sm:text-xl dark:text-white">Privacy Policy &amp; Terms</h2>
+                    <p id="privacyTermsIntro" class="mt-1 text-sm text-slate-600 dark:text-slate-300">Please review how your health information is used and protected.</p>
+                </div>
+                <button type="button" onclick="closePrivacyTermsModal()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#454B1B] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" aria-label="Close privacy policy and terms">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </header>
+
+            <div class="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 sm:py-6">
+                <section aria-labelledby="privacyPolicyHeading">
+                    <h3 id="privacyPolicyHeading" class="mb-4 text-base font-bold text-slate-900 sm:text-lg dark:text-white">PRIVACY POLICY</h3>
+                    <div class="space-y-4 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                        <p><strong>What we collect.</strong> ScanCare, run by Floridablanca RHU II – Gutad, collects your name, age, address, contact details, and the health information needed for your care, such as appointments, medical records, and vaccine records.</p>
+                        <p><strong>How we use it.</strong> We use your information to manage your appointments and health records, coordinate your care, and send reports required by the Department of Health. We do not sell your personal information.</p>
+                        <p><strong>Who can see it.</strong> Only authorized health center staff can view your records, and only what they need for their work. We may share information with the DOH, PhilHealth, or the LGU Health Office when required by law or for your care.</p>
+                        <p><strong>How we protect it.</strong> Your data is encrypted, and every access to your records is logged. Unauthorized access is investigated and the user involved is suspended.</p>
+                        <p><strong>Your rights.</strong> Under the Data Privacy Act of 2012 (RA 10173), you may view, correct, or request deletion of your data, withdraw your consent, and ask who has accessed your records. Deletion requests are handled within 30 days unless the data is still needed for your care.</p>
+                        <p><strong>Keeping your data.</strong> Records are kept for 5 years, archived, and permanently deleted after 10 years, unless they are needed longer for treatment or legal reasons.</p>
+                        <p><strong>Data breach.</strong> If a breach happens, we will act within 24 hours, notify affected persons within 72 hours, and inform the National Privacy Commission as required.</p>
+                    </div>
+                </section>
+
+                <section aria-labelledby="termsHeading">
+                    <h3 id="termsHeading" class="mb-4 text-base font-bold text-slate-900 sm:text-lg dark:text-white">TERMS AND CONDITIONS</h3>
+                    <div class="space-y-4 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                        <p><strong>Agreement.</strong> By using ScanCare, you agree to these Terms and our Privacy Policy.</p>
+                        <p><strong>Purpose.</strong> ScanCare helps residents of Barangay Gutad book appointments and manage health records. It does not replace a doctor. In an emergency, go to the nearest health facility right away.</p>
+                        <p><strong>Your account.</strong> Give accurate information when you register and keep your password private. You are responsible for activity under your account.</p>
+                        <p><strong>Proper use.</strong> Use ScanCare only for lawful, health-related purposes. Do not give false information, access other people’s records, or disrupt the system. Violations may lead to account suspension.</p>
+                        <p><strong>Appointments.</strong> Appointments depend on staff availability. Please arrive on time or cancel if you cannot attend.</p>
+                        <p><strong>Liability.</strong> We do our best to keep the system accurate and available, but we are not responsible for downtime or problems outside our control.</p>
+                        <p><strong>Changes.</strong> We may update these Terms and this Policy. Continuing to use ScanCare means you accept the changes.</p>
+                        <p><strong>Governing law.</strong> These Terms follow the laws of the Philippines.</p>
+                        <p><strong>Contact us.</strong> Floridablanca RHU II – Gutad, floridablancarhu2@gmail.com, 0948 056 6872.</p>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-4 py-4 sm:flex-row sm:justify-end sm:px-6 dark:border-slate-700 dark:bg-slate-900">
+                <button type="button" onclick="closePrivacyTermsModal()" class="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">Close</button>
+                <button type="button" onclick="agreeToPrivacyTerms()" class="min-h-11 rounded-lg bg-[#454B1B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#363812]">I Agree</button>
+            </footer>
+        </section>
+    </div>
+    <?php endif; ?>
+
+    <script>
+        let privacyTermsReturnFocus = null;
+        let privacyTermsPreviousOverflow = '';
+
+        window.openPrivacyTermsModal = function() {
+            const modal = document.getElementById('privacyTermsModal');
+            if (!modal) return;
+            privacyTermsReturnFocus = document.activeElement;
+            privacyTermsPreviousOverflow = document.body.style.overflow;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            modal.querySelector('button[aria-label="Close privacy policy and terms"]')?.focus();
+        };
+
+        window.closePrivacyTermsModal = function() {
+            const modal = document.getElementById('privacyTermsModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = privacyTermsPreviousOverflow;
+            privacyTermsReturnFocus?.focus();
+        };
+
+        window.agreeToPrivacyTerms = function() {
+            const consent = document.getElementById('privacyConsent');
+            if (consent) consent.checked = true;
+            window.closePrivacyTermsModal();
+            consent?.focus();
+        };
+
+        document.getElementById('privacyTermsModal')?.addEventListener('click', function(event) {
+            if (event.target === this) window.closePrivacyTermsModal();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            const modal = document.getElementById('privacyTermsModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            if (event.key === 'Escape') {
+                window.closePrivacyTermsModal();
+            }
+        });
+    </script>
 
     <!-- Success Login Modal -->
     <div id="successModal" class="modal-overlay">

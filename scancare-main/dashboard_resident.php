@@ -17,6 +17,7 @@ if (!isset($_SESSION['resident_id']) || $_SESSION['user_type'] !== 'resident') {
     exit;
 }
 
+requireCurrentSessionAccount('login.php');
 
 $resident_id = $_SESSION['resident_id'];
 
@@ -119,6 +120,8 @@ error_log($error_log_message);
 
 
 $appointments = [];
+$todayAppointments = [];
+$bookedAppointments = [];
 $fileRequests = [];
 $healthAnnouncements = [];
 $healthAnnouncementsByState = ['upcoming' => [], 'now' => []];
@@ -307,6 +310,7 @@ $isFormSubmission = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acti
 
 // Minimum booking date: residents must book at least 1 day prior (tomorrow or later)
 $minBookingDate = date('Y-m-d', strtotime('+1 day'));
+$maxBookingDate = (new DateTimeImmutable('today'))->modify('+1 month')->format('Y-m-d');
 
 
 
@@ -318,6 +322,10 @@ try {
     if ($pdo === false) {
         $appointmentErrorMessage = 'Database connection error. Please try again later.';
     } else {
+        if (!ensureAppointmentPatientNumberSchema($pdo)) {
+            throw new RuntimeException('Unable to initialize appointment queue numbers.');
+        }
+
         $today = date('Y-m-d');
         
         
@@ -329,6 +337,7 @@ try {
                 appointment_time,
                 purpose,
                 status,
+                patient_number,
                 resident_id
             FROM appointment
             WHERE resident_id = ? 
@@ -336,7 +345,7 @@ try {
             AND status IN ('scheduled', 'pending', 'approved', 'rescheduled', 'flagged')
             AND status NOT IN ('completed')
             ORDER BY appointment_date ASC, appointment_time ASC
-            LIMIT 5
+            LIMIT 50
         ";
         
         $stmtAppointments = $pdo->prepare($sqlAppointments);
@@ -344,6 +353,12 @@ try {
         
         
         $appointments = $stmtAppointments->fetchAll(PDO::FETCH_ASSOC);
+        $todayAppointments = array_values(array_filter($appointments, static function ($appointment) use ($today) {
+            return ($appointment['appointment_date'] ?? '') === $today;
+        }));
+        $bookedAppointments = array_values(array_filter($appointments, static function ($appointment) use ($today) {
+            return ($appointment['appointment_date'] ?? '') > $today;
+        }));
         
         error_log("Dashboard: Resident {$resident_id} - Appointments fetched: " . count($appointments));
     }
@@ -608,8 +623,8 @@ try {
                 status,
                 COALESCE(dosage, '') AS dosage
             FROM medicine
-            WHERE available > 0
-            ORDER BY name ASC
+            WHERE COALESCE(is_deleted, 0) = 0
+            ORDER BY (available > 0) DESC, name ASC
             LIMIT 50
         ";
         
@@ -651,6 +666,8 @@ if ($isFormSubmission) {
         $appointmentErrorMessage = 'All fields are required.';
     } elseif ($appointmentDate < $minBookingDate) {
         $appointmentErrorMessage = 'Appointments must be booked at least 1 day in advance. Earliest available date is ' . date('M d, Y', strtotime($minBookingDate)) . '.';
+    } elseif ($appointmentDate > $maxBookingDate) {
+        $appointmentErrorMessage = 'Appointments can only be booked up to one month from today.';
     } elseif ((int) date('N', strtotime($appointmentDate)) >= 6) {
         $appointmentErrorMessage = 'Appointments are available Monday through Friday only.';
     } else if (strtotime($appointmentDate . ' ' . $appointmentTime) < time()) {
@@ -779,13 +796,27 @@ if ($isFormSubmission) {
                         </div>
                         <?php endif; ?><form method="POST" action="" class="space-y-4">
                             <input type="hidden" name="action" value="book_appointment"><div>
-                                <label for="schedule_date" class="block text-sm font-semibold text-slate-900 mb-2">
+                                <label id="schedule_date_label" class="mb-2 block text-sm font-semibold text-slate-900">
                                     <i class="fa-solid fa-calendar mr-2" style="color: #454B1B;"></i>Preferred Date
                                 </label>
-                                <input type="date" id="preferred_date" name="appointment_date" required
-                                    class="w-full px-3 sm:px-4 py-2 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#454B1B] focus:border-transparent outline-none text-sm sm:text-base"
-                                    placeholder="Select a date"
-                                    min="<?php echo htmlspecialchars($minBookingDate); ?>">
+                                <div data-weekday-calendar data-target="preferred_date" data-min-date="<?php echo htmlspecialchars($minBookingDate, ENT_QUOTES, 'UTF-8'); ?>" data-max-date="<?php echo htmlspecialchars($maxBookingDate, ENT_QUOTES, 'UTF-8'); ?>" class="relative">
+                                    <input type="date" id="preferred_date" name="appointment_date" tabindex="-1" aria-hidden="true" class="sr-only" min="<?php echo htmlspecialchars($minBookingDate, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars($maxBookingDate, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <button type="button" data-calendar-toggle aria-labelledby="schedule_date_label" aria-expanded="false" class="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#454B1B] sm:px-4 sm:py-3 sm:text-base dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+                                        <span data-calendar-display>Select a weekday</span>
+                                        <i class="fa-solid fa-calendar-days shrink-0 text-[#454B1B] dark:text-lime-300" aria-hidden="true"></i>
+                                    </button>
+                                    <div data-calendar-popover class="absolute left-0 top-full z-30 mt-2 hidden w-full max-w-sm rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:p-4">
+                                        <div class="mb-3 flex items-center justify-between gap-2">
+                                            <button type="button" data-calendar-prev aria-label="Previous month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#454B1B] disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                                            <p data-calendar-month class="text-sm font-bold text-slate-900 dark:text-white"></p>
+                                            <button type="button" data-calendar-next aria-label="Next month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#454B1B] dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                        </div>
+                                        <div class="mb-1 grid grid-cols-5 gap-1 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                            <span data-calendar-weekday>Mon</span><span data-calendar-weekday>Tue</span><span data-calendar-weekday>Wed</span><span data-calendar-weekday>Thu</span><span data-calendar-weekday>Fri</span>
+                                        </div>
+                                        <div data-calendar-grid role="grid" aria-label="Available weekdays" class="grid grid-cols-5 gap-1"></div>
+                                    </div>
+                                </div>
                             </div><div>
                                 <label for="preferred_time" class="block text-sm font-semibold text-slate-900 mb-2">
                                     <i class="fa-solid fa-clock mr-2" style="color: #454B1B;"></i>Preferred Time
@@ -886,56 +917,93 @@ if ($isFormSubmission) {
                             <div class="flex items-center justify-center gap-3 mb-4 sm:justify-start">
                                 <i class="fa-solid fa-list-check shrink-0 text-lg sm:text-2xl" style="color: #454B1B;"></i>
                                 <div class="min-w-0 text-center sm:text-left">
-                                    <h3 class="text-base sm:text-xl font-heading font-bold text-slate-900">Upcoming Appointments</h3>
-                                    <p class="text-xs sm:text-sm text-slate-600">See your upcoming visit schedule below.</p>
+                                    <h3 class="text-base sm:text-xl font-heading font-bold text-slate-900">Your Appointments</h3>
+                                    <p class="text-xs sm:text-sm text-slate-600">View today’s schedule or your other booked visits.</p>
                                 </div>
                             </div>
 
+                            <?php
+                            $appointmentTabs = [
+                                'today' => [
+                                    'label' => 'Today',
+                                    'appointments' => $todayAppointments,
+                                    'empty_title' => 'No appointments scheduled for today.',
+                                    'empty_text' => 'Your appointment for today will appear here.'
+                                ],
+                                'booked' => [
+                                    'label' => 'Booked',
+                                    'appointments' => $bookedAppointments,
+                                    'empty_title' => 'No other booked appointments.',
+                                    'empty_text' => 'Appointments booked for future dates will appear here.'
+                                ]
+                            ];
+                            ?>
                             <div class="appointments-list">
-                                <?php if (empty($appointments)): ?><div class="border-2 border-dashed border-slate-200 rounded-lg p-6 sm:p-8 text-center bg-slate-50">
-                                    <i class="fa-solid fa-calendar-xmark text-3xl sm:text-4xl" style="color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
-                                    <p class="text-slate-600 font-semibold text-sm sm:text-base mb-2">No upcoming appointments scheduled.</p>
-                                    <p class="text-xs sm:text-sm text-slate-500">
-                                        Schedule your first appointment using the form above to get started.
-                                    </p>
-                                </div>
-                                <?php else: ?><div class="space-y-3 sm:space-y-4">
-                                    <?php foreach ($appointments as $appointment): 
-                                        $statusColor = 'bg-yellow-100 text-yellow-800';
-                                        if ($appointment['status'] === 'approved') {
-                                            $statusColor = 'bg-blue-100 text-blue-800';
-                                        } elseif ($appointment['status'] === 'rescheduled') {
-                                            $statusColor = 'bg-violet-100 text-violet-800 border border-violet-200';
-                                        } elseif ($appointment['status'] === 'flagged') {
-                                            $statusColor = 'bg-amber-100 text-amber-800 border border-amber-200';
-                                        } elseif ($appointment['status'] === 'completed') {
-                                            $statusColor = 'bg-green-100 text-green-800';
-                                        }
-                                    ?>
-                                    <div class="border border-slate-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div class="flex-1 min-w-0">
-                                                <div class="flex items-center gap-2 flex-wrap mb-2">
-                                                    <span class="text-xs font-semibold text-slate-600">
-                                                        <i class="fa-solid fa-calendar mr-1"></i><?php echo date('M d, Y', strtotime($appointment['appointment_date'])); ?>
-                                                    </span>
-                                                    <span class="text-xs font-semibold text-slate-600">
-                                                        <i class="fa-solid fa-clock mr-1"></i><?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
-                                                    </span>
-                                                    <span class="<?php echo $statusColor; ?> text-xs font-semibold px-2 py-1 rounded capitalize">
-                                                        <?php echo $appointment['status'] === 'flagged' ? 'Follow-up' : ucfirst($appointment['status']); ?>
-                                                    </span>
-                                                </div>
-                                                <p class="font-semibold text-slate-900 text-sm sm:text-base">
-                                                    <?php echo htmlspecialchars($appointment['purpose']); ?>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="mb-4 flex gap-2 border-b border-slate-200" role="tablist" aria-label="Appointment schedule">
+                                    <?php foreach ($appointmentTabs as $tabKey => $tab): ?>
+                                        <button type="button" data-resident-appointment-tab="<?php echo $tabKey; ?>" role="tab" aria-controls="resident-appointment-panel-<?php echo $tabKey; ?>" aria-selected="<?php echo $tabKey === 'today' ? 'true' : 'false'; ?>" class="border-b-2 px-4 py-2 text-sm font-semibold transition <?php echo $tabKey === 'today' ? 'border-[#454B1B] text-[#454B1B]' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'; ?>">
+                                            <?php echo $tab['label']; ?> <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"><?php echo count($tab['appointments']); ?></span>
+                                        </button>
                                     <?php endforeach; ?>
                                 </div>
-                                <?php endif; ?>
+
+                                <?php foreach ($appointmentTabs as $tabKey => $tab): ?>
+                                    <div id="resident-appointment-panel-<?php echo $tabKey; ?>" data-resident-appointment-panel="<?php echo $tabKey; ?>" role="tabpanel" <?php echo $tabKey === 'today' ? '' : 'hidden'; ?>>
+                                        <?php if (empty($tab['appointments'])): ?>
+                                            <div class="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center sm:p-8">
+                                                <i class="fa-solid fa-calendar-xmark mb-3 block text-3xl text-slate-300 sm:text-4xl"></i>
+                                                <p class="mb-2 text-sm font-semibold text-slate-600 sm:text-base"><?php echo $tab['empty_title']; ?></p>
+                                                <p class="text-xs text-slate-500 sm:text-sm"><?php echo $tab['empty_text']; ?></p>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="space-y-3 sm:space-y-4">
+                                                <?php foreach ($tab['appointments'] as $appointment):
+                                                    $statusColor = 'bg-yellow-100 text-yellow-800';
+                                                    if ($appointment['status'] === 'approved') {
+                                                        $statusColor = 'bg-blue-100 text-blue-800';
+                                                    } elseif ($appointment['status'] === 'rescheduled') {
+                                                        $statusColor = 'bg-violet-100 text-violet-800 border border-violet-200';
+                                                    } elseif ($appointment['status'] === 'flagged') {
+                                                        $statusColor = 'bg-amber-100 text-amber-800 border border-amber-200';
+                                                    }
+                                                ?>
+                                                    <div class="rounded-lg border border-slate-200 p-3 transition-shadow hover:shadow-md sm:p-4">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div class="min-w-0 flex-1">
+                                                                <div class="mb-2 flex flex-wrap items-center gap-2">
+                                                                    <span class="text-xs font-semibold text-slate-600"><i class="fa-solid fa-calendar mr-1"></i><?php echo date('M d, Y', strtotime($appointment['appointment_date'])); ?></span>
+                                                                    <span class="text-xs font-semibold text-slate-600"><i class="fa-solid fa-clock mr-1"></i><?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?></span>
+                                                                    <span class="<?php echo $statusColor; ?> rounded px-2 py-1 text-xs font-semibold capitalize"><?php echo $appointment['status'] === 'flagged' ? 'Follow-up' : ucfirst($appointment['status']); ?></span>
+                                                                </div>
+                                                                <p class="text-sm font-semibold text-slate-900 sm:text-base"><?php echo htmlspecialchars($appointment['purpose']); ?></p>
+                                                            </div>
+                                                            <div class="shrink-0 whitespace-nowrap text-right text-xs font-semibold text-slate-600">Patient No: <?php echo (int) $appointment['patient_number']; ?></div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
+                            <script>
+                                document.querySelectorAll('[data-resident-appointment-tab]').forEach(function (tab) {
+                                    tab.addEventListener('click', function () {
+                                        const selectedTab = tab.dataset.residentAppointmentTab;
+                                        document.querySelectorAll('[data-resident-appointment-tab]').forEach(function (otherTab) {
+                                            const isSelected = otherTab.dataset.residentAppointmentTab === selectedTab;
+                                            otherTab.setAttribute('aria-selected', String(isSelected));
+                                            otherTab.classList.toggle('border-[#454B1B]', isSelected);
+                                            otherTab.classList.toggle('text-[#454B1B]', isSelected);
+                                            otherTab.classList.toggle('border-transparent', !isSelected);
+                                            otherTab.classList.toggle('text-slate-500', !isSelected);
+                                        });
+                                        document.querySelectorAll('[data-resident-appointment-panel]').forEach(function (panel) {
+                                            panel.hidden = panel.dataset.residentAppointmentPanel !== selectedTab;
+                                        });
+                                    });
+                                });
+                            </script>
                         </div>
                     </div>
                 </div><div id="file-requests" class="resident-mobile-section bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
@@ -945,15 +1013,15 @@ if ($isFormSubmission) {
                                 <h2 class="text-lg sm:text-xl font-heading font-bold text-slate-900">View Medical Record</h2>
                                 <p class="text-xs sm:text-sm text-slate-600 mt-1">Request a copy of your health file and download it when approved.</p>
                             </div>
-                            <a href="confirm_file_request.php" target="_blank" rel="noopener" class="shrink-0 rounded-lg bg-[#454B1B] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"><i class="fas fa-file-circle-plus mr-1"></i> Request File</a>
+                            <button type="button" onclick="confirmResidentFileRequest()" aria-haspopup="dialog" class="shrink-0 rounded-lg bg-[#454B1B] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"><i class="fas fa-file-circle-plus mr-1"></i> Request File</button>
                         </div>
                     </div>
                     <div class="p-4 sm:p-6">
                         <?php if (($_GET['request_status'] ?? '') === 'submitted'): ?><div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">Your file request was sent to the health worker.</div><?php elseif (($_GET['request_status'] ?? '') === 'deleted'): ?><div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">The file request was deleted.</div><?php endif; ?>
+                        <div id="residentFileRequestList" class="space-y-3">
                         <?php if (empty($fileRequests)): ?>
-                            <div class="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center"><i class="fas fa-folder-open mb-2 text-3xl text-slate-300"></i><p class="text-sm font-semibold text-slate-600">No file requests yet.</p><p class="mt-1 text-xs text-slate-500">Use the Request File button to submit a request from this device.</p></div>
+                            <div id="residentFileRequestsEmpty" class="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center"><i class="fas fa-folder-open mb-2 text-3xl text-slate-300"></i><p class="text-sm font-semibold text-slate-600">No file requests yet.</p><p class="mt-1 text-xs text-slate-500">Use the Request File button to submit a request from this device.</p></div>
                         <?php else: ?>
-                            <div class="space-y-3">
                                 <?php foreach ($fileRequests as $fileRequest):
                                     $requestStatus = strtolower($fileRequest['status']);
                                     $requestBadge = $requestStatus === 'accepted' ? 'bg-green-100 text-green-800' : ($requestStatus === 'declined' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800');
@@ -963,8 +1031,8 @@ if ($isFormSubmission) {
                                     <div class="flex flex-wrap items-stretch gap-2"><span class="inline-flex min-h-8 items-center rounded-full px-2 py-1 text-xs font-bold capitalize <?php echo $requestBadge; ?>"><?php echo htmlspecialchars($requestStatus); ?></span><?php if ($requestStatus === 'accepted'): ?><a href="download_file_request.php?request_id=<?php echo (int) $fileRequest['request_id']; ?>" data-offline-record class="flex min-h-8 max-w-full items-center justify-center rounded-lg bg-[#454B1B] px-2 py-1.5 text-[11px] font-semibold leading-tight text-center text-white hover:opacity-90 sm:px-3 sm:py-2 sm:text-xs"><i class="fas fa-print mr-1"></i> Open printable record</a><?php endif; ?><form method="post" action="delete_file_request.php" class="flex min-h-8" onsubmit="confirmResidentFileRequestDelete(event);"><input type="hidden" name="request_id" value="<?php echo (int) $fileRequest['request_id']; ?>"><button type="submit" class="flex min-h-8 items-center justify-center rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"><i class="fas fa-trash mr-1"></i> Delete</button></form></div>
                                 </div>
                                 <?php endforeach; ?>
-                            </div>
                         <?php endif; ?>
+                        </div>
                     </div>
                 </div><div id="available-medicines" class="resident-mobile-section bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
                     <div class="bg-gradient-to-r from-[#454B1B]/5 to-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5">
@@ -994,7 +1062,7 @@ if ($isFormSubmission) {
                                 $badgeIcon = 'fa-check-circle';
                                 $dosageValue = trim((string)($medicine['dosage'] ?? ''));
                                 
-                                if ($medicine['stock_quantity'] == 0) {
+                                if ((int) $medicine['stock_quantity'] <= 0) {
                                     $stockStatus = 'Out of Stock';
                                     $badgeClass = 'bg-red-100 text-red-800';
                                     $badgeIcon = 'fa-times-circle';
@@ -1020,10 +1088,6 @@ if ($isFormSubmission) {
                                         <i class="fa-solid <?php echo $badgeIcon; ?>" style="font-size: 12px;"></i>
                                         <?php echo $stockStatus; ?>
                                     </span>
-                                </div>
-                                <div class="text-xs text-slate-600 flex items-center gap-2">
-                                    <i class="fa-solid fa-boxes-stacked" style="color: #454B1B;"></i>
-                                    <span><?php echo $medicine['stock_quantity']; ?> units available</span>
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -1863,6 +1927,111 @@ window.confirmCenteredConfirmModal = function() {
     if (typeof callback === 'function') callback();
 };
 
+let residentFileRequestSubmitting = false;
+
+window.showResidentFileRequestToast = function(message, type = 'success') {
+    let toast = document.getElementById('residentFileRequestToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'residentFileRequestToast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.className = 'pointer-events-none fixed inset-x-4 bottom-4 z-[25000] mx-auto flex max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm font-semibold shadow-lg opacity-0 translate-y-2 transition-all duration-200';
+        document.body.appendChild(toast);
+    }
+
+    const isSuccess = type === 'success';
+    toast.className = 'pointer-events-none fixed inset-x-4 bottom-4 z-[25000] mx-auto flex max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm font-semibold shadow-lg transition-all duration-200 ' +
+        (isSuccess ? 'border-emerald-200 bg-white text-emerald-800' : 'border-red-200 bg-white text-red-800');
+    toast.textContent = message;
+    requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-2'));
+    clearTimeout(window.residentFileRequestToastTimer);
+    window.residentFileRequestToastTimer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+    }, 4200);
+};
+
+function appendResidentFileRequest(request) {
+    const list = document.getElementById('residentFileRequestList');
+    if (!list || !request) return;
+    document.getElementById('residentFileRequestsEmpty')?.remove();
+
+    const card = document.createElement('div');
+    card.className = 'flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between';
+    const details = document.createElement('div');
+    const fileName = document.createElement('p');
+    fileName.className = 'font-semibold text-slate-900';
+    fileName.textContent = request.requested_file || 'Medical Record';
+    const submitted = document.createElement('p');
+    submitted.className = 'text-xs text-slate-500';
+    const createdAt = String(request.created_at || '').replace(' ', 'T');
+    submitted.textContent = 'Submitted ' + (createdAt ? new Date(createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'just now');
+    details.append(fileName, submitted);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-stretch gap-2';
+    const badge = document.createElement('span');
+    badge.className = 'inline-flex min-h-8 items-center rounded-full bg-amber-100 px-2 py-1 text-xs font-bold capitalize text-amber-800';
+    badge.textContent = request.status || 'pending';
+    actions.appendChild(badge);
+
+    const deleteForm = document.createElement('form');
+    deleteForm.method = 'post';
+    deleteForm.action = 'delete_file_request.php';
+    deleteForm.className = 'flex min-h-8';
+    deleteForm.addEventListener('submit', window.confirmResidentFileRequestDelete);
+    const requestId = document.createElement('input');
+    requestId.type = 'hidden';
+    requestId.name = 'request_id';
+    requestId.value = String(request.request_id);
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'submit';
+    deleteButton.className = 'flex min-h-8 items-center justify-center rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50';
+    deleteButton.innerHTML = '<i class="fas fa-trash mr-1" aria-hidden="true"></i> Delete';
+    deleteForm.append(requestId, deleteButton);
+    actions.appendChild(deleteForm);
+    card.append(details, actions);
+    list.prepend(card);
+}
+
+window.confirmResidentFileRequest = function() {
+    window.openCenteredConfirmation({
+        title: 'Request a copy of your medical record?',
+        message: 'Your health worker will review your request and prepare the file after approval.',
+        confirmLabel: 'Send File Request',
+        confirmClass: 'bg-[#454B1B] hover:bg-[#363812]',
+        onConfirm: async () => {
+            if (residentFileRequestSubmitting) return;
+            residentFileRequestSubmitting = true;
+            try {
+                const formData = new FormData();
+                formData.append('requested_file', 'Medical Record');
+                const response = await fetch('request_file_action.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Unable to submit your file request.');
+                }
+
+                if (result.already_pending) {
+                    window.showResidentFileRequestToast('You already have a pending medical record request.', 'success');
+                } else {
+                    appendResidentFileRequest(result.request);
+                    window.showResidentFileRequestToast('File request sent successfully.');
+                }
+            } catch (error) {
+                window.showResidentFileRequestToast(error.message || 'Unable to submit your file request.', 'error');
+            } finally {
+                residentFileRequestSubmitting = false;
+            }
+        }
+    });
+};
+
 window.confirmResidentFileRequestDelete = function(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2426,5 +2595,7 @@ applyMedicalHistoryVisibility();
     <script src="login-notification-system.js?v=13"></script>
     <script src="pwa-offline.js?v=4"></script>
     <script src="offline-pdf-download.js?v=4"></script>
+    <script src="weekday-calendar.js?v=8"></script>
+    <script src="account-session-monitor.js?v=1"></script>
     </body>
     </html>

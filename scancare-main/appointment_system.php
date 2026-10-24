@@ -14,6 +14,69 @@ if (session_status() === PHP_SESSION_NONE) {
 
 
 
+function ensureAppointmentPatientNumberSchema(PDO $pdo) {
+    static $ready = false;
+    if ($ready) {
+        return true;
+    }
+
+    $lockName = 'scancare_appointment_queue_schema';
+    try {
+        $lockStmt = $pdo->prepare('SELECT GET_LOCK(?, 10)');
+        $lockStmt->execute([$lockName]);
+        if ((int) $lockStmt->fetchColumn() !== 1) {
+            return false;
+        }
+
+        try {
+            if (!ensureTableColumn($pdo, 'appointment', 'patient_number', 'INT UNSIGNED NULL')) {
+                return false;
+            }
+
+            $indexStmt = $pdo->query("SHOW INDEX FROM appointment WHERE Key_name = 'idx_appointment_slot_queue'");
+            if (!$indexStmt || !$indexStmt->fetch(PDO::FETCH_ASSOC)) {
+                $pdo->exec('ALTER TABLE appointment ADD INDEX idx_appointment_slot_queue (appointment_date, appointment_time, patient_number)');
+            }
+
+            $pdo->beginTransaction();
+            try {
+                $rowsStmt = $pdo->query('SELECT appointment_id, appointment_date, appointment_time FROM appointment WHERE patient_number IS NULL ORDER BY appointment_date, appointment_time, created_at, appointment_id');
+                $nextNumbers = [];
+                $maxStmt = $pdo->prepare('SELECT COALESCE(MAX(patient_number), 0) FROM appointment WHERE appointment_date = ? AND appointment_time = ?');
+                $updateStmt = $pdo->prepare('UPDATE appointment SET patient_number = ? WHERE appointment_id = ? AND patient_number IS NULL');
+
+                while ($appointment = $rowsStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $slotKey = $appointment['appointment_date'] . ' ' . $appointment['appointment_time'];
+                    if (!isset($nextNumbers[$slotKey])) {
+                        $maxStmt->execute([$appointment['appointment_date'], $appointment['appointment_time']]);
+                        $nextNumbers[$slotKey] = (int) $maxStmt->fetchColumn() + 1;
+                    }
+
+                    $updateStmt->execute([$nextNumbers[$slotKey], $appointment['appointment_id']]);
+                    $nextNumbers[$slotKey]++;
+                }
+
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                throw $e;
+            }
+
+            $ready = true;
+            return true;
+        } finally {
+            $releaseStmt = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+            $releaseStmt->execute([$lockName]);
+        }
+    } catch (Throwable $e) {
+        error_log('Failed to ensure appointment patient numbers: ' . $e->getMessage());
+        return false;
+    }
+}
+
+
 function bookAppointment($resident_id, $appointment_date, $appointment_time, $purpose, $pdo = null) {
     try {
         $pdo = $pdo ?? getDatabaseConnection();
@@ -61,6 +124,14 @@ function bookAppointment($resident_id, $appointment_date, $appointment_time, $pu
             ];
         }
 
+        if (!ensureAppointmentPatientNumberSchema($pdo)) {
+            return [
+                'success' => false,
+                'message' => 'Unable to assign a queue number. Please try again.',
+                'appointment_id' => null
+            ];
+        }
+
         $lockName = 'scancare_day_' . substr(hash('sha256', $appointment_date), 0, 48);
         $lockStmt = $pdo->prepare('SELECT GET_LOCK(?, 10)');
         $lockStmt->execute([$lockName]);
@@ -95,27 +166,33 @@ function bookAppointment($resident_id, $appointment_date, $appointment_time, $pu
                 ];
             }
 
+            $queueStmt = $pdo->prepare('SELECT COALESCE(MAX(patient_number), 0) + 1 FROM appointment WHERE appointment_date = ? AND appointment_time = ?');
+            $queueStmt->execute([$appointment_date, $appointment_time]);
+            $patientNumber = (int) $queueStmt->fetchColumn();
+
             $insert_stmt = $pdo->prepare("
             INSERT INTO appointment 
-            (resident_id, appointment_date, appointment_time, purpose, status, created_at)
-            VALUES (?, ?, ?, ?, 'scheduled', NOW())
+            (resident_id, appointment_date, appointment_time, purpose, status, patient_number, created_at)
+            VALUES (?, ?, ?, ?, 'scheduled', ?, NOW())
             ");
 
             $insert_stmt->execute([
                 $resident_id,
                 $appointment_date,
                 $appointment_time,
-                htmlspecialchars(trim($purpose))
+                htmlspecialchars(trim($purpose)),
+                $patientNumber
             ]);
 
             $appointment_id = $pdo->lastInsertId();
 
-            error_log("APPOINTMENT BOOKED: Resident $resident_id, Appointment ID $appointment_id, Date $appointment_date $appointment_time");
+            error_log("APPOINTMENT BOOKED: Resident $resident_id, Appointment ID $appointment_id, Patient No $patientNumber, Date $appointment_date $appointment_time");
 
             return [
                 'success' => true,
                 'message' => 'Appointment booked successfully!',
-                'appointment_id' => $appointment_id
+                'appointment_id' => $appointment_id,
+                'patient_number' => $patientNumber
             ];
         } finally {
             $releaseStmt = $pdo->prepare('SELECT RELEASE_LOCK(?)');
@@ -251,9 +328,6 @@ function getUpcomingAppointments() {
         return [];
     }
 }
-
-
-
 
 
 

@@ -1130,6 +1130,13 @@ $rhuDotClass = $rhuIsOpen ? 'pulse' : '';
             color: #f8fafc !important;
         }
 
+        html.dark .process-flow-section a.group:hover > div.pointer-events-none,
+        html.dark .process-flow-section a.group:focus > div.pointer-events-none,
+        body.dark-mode .process-flow-section a.group:hover > div.pointer-events-none,
+        body.dark-mode .process-flow-section a.group:focus > div.pointer-events-none {
+            color: rgba(255, 255, 255, 0.02) !important;
+        }
+
         html.dark .process-flow-section > .max-w-7xl,
         body.dark-mode .process-flow-section > .max-w-7xl {
             background-color: transparent !important;
@@ -1141,6 +1148,14 @@ $rhuDotClass = $rhuIsOpen ? 'pulse' : '';
         body.dark-mode .process-flow-section a.group .bg-slate-100 {
             background-color: #202c21 !important;
             color: #b8c8b8 !important;
+        }
+
+        html.dark .process-flow-section a.group:hover > div.pointer-events-none,
+        html.dark .process-flow-section a.group:focus > div.pointer-events-none,
+        body.dark-mode .process-flow-section a.group:hover > div.pointer-events-none,
+        body.dark-mode .process-flow-section a.group:focus > div.pointer-events-none {
+            background-color: transparent !important;
+            color: rgba(255, 255, 255, 0.02) !important;
         }
 
         html.dark .process-flow-section a.group:not(:hover) .text-slate-900,
@@ -1201,7 +1216,7 @@ $rhuDotClass = $rhuIsOpen ? 'pulse' : '';
         <video id="splash-video" autoplay muted playsinline>
             <source src="images/logo-reveal.mp4" type="video/mp4">
         </video>
-        <p class="enter-text">tap/click to continue</p>
+        <p class="enter-text">Tap/Click to Continue</p>
     </div>
 
     <?php include 'navbar.php'; ?>
@@ -1517,7 +1532,7 @@ $rhuDotClass = $rhuIsOpen ? 'pulse' : '';
                 <div><h3 class="font-heading font-bold text-lg mb-4">ScanCare</h3><p class="text-slate-400 text-sm">Healthcare made simple for Barangay Gutad</p></div>
                 <div><h4 class="font-semibold mb-4">Services</h4><ul class="space-y-2 text-sm text-slate-400"><li><a href="appointments.php" class="hover:text-white transition">Appointments</a></li><li><a href="system-goals.php" class="hover:text-white transition">System Goals</a></li><li><a href="service-areas.php" class="hover:text-white transition">Service Areas</a></li></ul></div>
                 <div><h4 class="font-semibold mb-4">Legal</h4><ul class="space-y-2 text-sm text-slate-400"><li><a href="compliance.php" class="hover:text-white transition">Privacy Policy & Terms of Service</a></li></ul></div>
-                <div id="footer-contact"><h4 class="font-semibold mb-4">Contact</h4><p class="text-slate-400 text-sm">Floridablanca RHU II - GUTAD<br>Email: floridablancarhu2@gmail.com<br>Contact: 0948 056 6872</p></div>
+                <div id="footer-contact"><h4 class="font-semibold mb-4">Contact</h4><p class="text-slate-400 text-sm">Floridablanca RHU II - GUTAD<br><a href="mailto:floridablancarhu2@gmail.com" class="inline-flex items-center gap-2 hover:text-white transition"><i class="fa-solid fa-envelope w-4 text-center" aria-hidden="true"></i><span>floridablancarhu2@gmail.com</span></a><br><a href="tel:09480566872" class="inline-flex items-center gap-2 hover:text-white transition"><i class="fa-solid fa-phone w-4 text-center" aria-hidden="true"></i><span>0948 056 6872</span></a><br><a href="https://www.facebook.com/share/1DRzKzHcYD/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 hover:text-white transition" aria-label="ScanCare on Facebook"><i class="fa-brands fa-facebook-f w-4 text-center" aria-hidden="true"></i><span>RHU II - Gutad</span></a></p></div>
             </div>
             <div class="border-t border-slate-800 pt-8 text-center text-slate-400 text-sm"><p>&copy; 2026 ScanCare. All rights reserved. Your data is encrypted and secure.</p></div>
         </div>
@@ -1852,27 +1867,13 @@ $rhuDotClass = $rhuIsOpen ? 'pulse' : '';
                 return;
             }
 
-            const splashShown = sessionStorage.getItem('splashScreenShown');
-            
-            if (splashShown) {
-                splashScreen.classList.add('fade-out');
-                splashScreen.addEventListener('transitionend', function(event) {
-                    if (event.propertyName === 'opacity') {
-                        splashScreen.remove();
-                    }
-                }, { once: true });
-                return;
-            }
-
             splashVideo.addEventListener('ended', function() {
                 enterText.classList.add('show');
             });
 
-            splashScreen.addEventListener('click', function(e) {
+            splashVideo.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                
-                sessionStorage.setItem('splashScreenShown', 'true');
                 splashScreen.classList.add('fade-out');
                 
                 splashScreen.addEventListener('transitionend', function(event) {

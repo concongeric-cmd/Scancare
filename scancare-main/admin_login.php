@@ -321,11 +321,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="password" name="password" required class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your password">
                         </div>
 
-                        <label class="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
-                            <input type="checkbox" name="remember_device" class="w-4 h-4 rounded bg-slate-900 border-slate-600" style="accent-color: #A3E635;">
-                            <span class="text-sm text-slate-300">Remember this device</span>
-                        </label>
-
                         <button type="submit" style="background-color: #7C6E1F;" class="w-full text-white font-semibold py-3 rounded-lg hover:opacity-90 transition-all shadow-md">
                             <i class="fa-solid fa-sign-in-alt mr-2"></i>Sign In to Administrator Panel
                         </button>

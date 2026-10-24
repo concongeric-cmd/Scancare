@@ -63,6 +63,76 @@ function sendScanCareAlert($number, $message) {
     return ['output' => $output, 'error' => $err, 'http_code' => $httpCode];
 }
 
+function sendNowAnnouncementToResidents(PDO $pdo, array $announcement): array {
+    $announcementId = (int) ($announcement['announcement_id'] ?? 0);
+    $claim = $pdo->prepare(
+        'UPDATE health_announcements
+         SET now_sms_claimed_at = NOW(), now_sms_attempts = COALESCE(now_sms_attempts, 0) + 1
+         WHERE announcement_id = ? AND now_sms_sent_at IS NULL AND now_sms_claimed_at IS NULL'
+    );
+    $claim->execute([$announcementId]);
+    if ($claim->rowCount() !== 1) {
+        return ['attempted' => false, 'sent' => 0, 'failed' => 0];
+    }
+
+    $numbers = [];
+    $query = $pdo->query(
+        'SELECT contact_number FROM resident
+         WHERE contact_number IS NOT NULL AND TRIM(contact_number) <> ""'
+    );
+    while ($row = $query->fetch(PDO::FETCH_ASSOC)) {
+        $digits = preg_replace('/\D+/', '', (string) ($row['contact_number'] ?? ''));
+        if (strlen($digits) === 10) {
+            $digits = '63' . $digits;
+        } elseif (strlen($digits) === 11 && substr($digits, 0, 1) === '0') {
+            $digits = '63' . substr($digits, 1);
+        }
+        if (substr($digits, 0, 2) === '63' && strlen($digits) >= 12) {
+            $numbers[] = $digits;
+        }
+    }
+    $numbers = array_values(array_unique($numbers));
+
+    $smsMessage = 'Announcement now: ' . trim((string) ($announcement['title'] ?? ''));
+    $body = trim((string) ($announcement['message'] ?? ''));
+    $location = trim((string) ($announcement['location'] ?? ''));
+    if ($body !== '') {
+        $smsMessage .= '. ' . $body;
+    }
+    if ($location !== '') {
+        $smsMessage .= ' Location: ' . $location;
+    }
+    $smsMessage .= ' - ScanCare';
+
+    $sent = 0;
+    $failed = 0;
+    $errors = [];
+    foreach (array_chunk($numbers, 100) as $batch) {
+        $result = sendScanCareAlert(implode(',', $batch), $smsMessage);
+        if ($result['error'] === '' && (int) $result['http_code'] >= 200 && (int) $result['http_code'] < 300) {
+            $sent += count($batch);
+        } else {
+            $failed += count($batch);
+            $errors[] = trim((string) ($result['error'] ?: 'HTTP ' . $result['http_code']));
+        }
+    }
+
+    if ($failed === 0 && $sent > 0) {
+        $pdo->prepare(
+            'UPDATE health_announcements
+             SET now_sms_sent_at = NOW(), now_sms_error = NULL
+             WHERE announcement_id = ?'
+        )->execute([$announcementId]);
+    } else {
+        $pdo->prepare(
+            'UPDATE health_announcements SET now_sms_error = ? WHERE announcement_id = ?'
+        )->execute([implode('; ', array_slice($errors, 0, 5)), $announcementId]);
+    }
+
+    error_log('ANNOUNCEMENT NOW SMS: id=' . $announcementId . ' sent=' . $sent . ' failed=' . $failed);
+    return ['attempted' => true, 'sent' => $sent, 'failed' => $failed];
+}
+
 // Residents render a read-only community surveillance widget from their
 // dashboard. Handle that request before the worker-only dashboard guard so a
 // resident request cannot destroy the resident's authenticated session.
@@ -115,6 +185,8 @@ if ($sessionWorkerId === null ||
     header('Location: login.php');
     exit;
 }
+
+requireCurrentSessionAccount('login.php');
 
 // Retrieve worker identity from session
 $worker_id = intval($sessionWorkerId);
@@ -432,6 +504,18 @@ try {
         if (!hasTableColumn($announcementPdo, 'health_announcements', 'state')) {
             $announcementPdo->exec("ALTER TABLE health_announcements ADD COLUMN state VARCHAR(20) NOT NULL DEFAULT 'upcoming'");
         }
+        if (!hasTableColumn($announcementPdo, 'health_announcements', 'now_sms_claimed_at')) {
+            $announcementPdo->exec('ALTER TABLE health_announcements ADD COLUMN now_sms_claimed_at DATETIME NULL');
+        }
+        if (!hasTableColumn($announcementPdo, 'health_announcements', 'now_sms_sent_at')) {
+            $announcementPdo->exec('ALTER TABLE health_announcements ADD COLUMN now_sms_sent_at DATETIME NULL');
+        }
+        if (!hasTableColumn($announcementPdo, 'health_announcements', 'now_sms_error')) {
+            $announcementPdo->exec('ALTER TABLE health_announcements ADD COLUMN now_sms_error TEXT NULL');
+        }
+        if (!hasTableColumn($announcementPdo, 'health_announcements', 'now_sms_attempts')) {
+            $announcementPdo->exec('ALTER TABLE health_announcements ADD COLUMN now_sms_attempts INT UNSIGNED NOT NULL DEFAULT 0');
+        }
 
         $today = date('Y-m-d');
         $announcementPdo->prepare("UPDATE health_announcements
@@ -441,6 +525,16 @@ try {
                 ELSE 'upcoming'
             END
             WHERE service_date IS NOT NULL")->execute([$today, $today]);
+
+        $nowStmt = $announcementPdo->query(
+            'SELECT announcement_id, worker_id, title, message, location
+             FROM health_announcements
+             WHERE state = "now" AND now_sms_sent_at IS NULL
+               AND now_sms_claimed_at IS NULL'
+        );
+        foreach ($nowStmt->fetchAll(PDO::FETCH_ASSOC) as $nowAnnouncement) {
+            sendNowAnnouncementToResidents($announcementPdo, $nowAnnouncement);
+        }
     }
 } catch (Exception $e) {
     error_log('ANNOUNCEMENT TABLE SETUP ERROR: ' . $e->getMessage());
@@ -468,6 +562,18 @@ function resolveAnnouncementStateByDate($serviceDate, $selectedState) {
 
 // Initialize module states for tab navigation
 $active_module = $_GET['module'] ?? 'appointments';
+$today = date('Y-m-d');
+$selected_queue_date = $today;
+$requested_queue_date = trim((string) ($_GET['queue_date'] ?? ''));
+if ($requested_queue_date !== '') {
+    $parsed_queue_date = DateTime::createFromFormat('!Y-m-d', $requested_queue_date);
+    if ($parsed_queue_date && $parsed_queue_date->format('Y-m-d') === $requested_queue_date) {
+        $selected_queue_date = $requested_queue_date;
+    }
+}
+$selected_queue_date_label = date('F j, Y', strtotime($selected_queue_date));
+$previous_queue_date = date('Y-m-d', strtotime($selected_queue_date . ' -1 day'));
+$next_queue_date = date('Y-m-d', strtotime($selected_queue_date . ' +1 day'));
 $consultation_resident_id = (int) ($_GET['resident_id'] ?? 0);
 $consultation_appointment_id = (int) ($_GET['appointment_id'] ?? 0);
 $consultation_walk_in = ($_GET['walk_in'] ?? '') === '1';
@@ -1226,6 +1332,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $maxAppointmentDate = (new DateTimeImmutable('today'))->modify('+1 month')->format('Y-m-d');
+        if ($newDate > $maxAppointmentDate) {
+            echo json_encode(['success' => false, 'message' => 'Appointments can only be scheduled up to one month from today.']);
+            exit;
+        }
+
         if ((int) $dateTime->format('N') >= 6) {
             echo json_encode(['success' => false, 'message' => 'Appointments can only be scheduled Monday through Friday.']);
             exit;
@@ -1877,17 +1989,33 @@ $pending_reminders = 0;
 $sms_sent_today = 0;
 $sms_failed_today = 0;
 $upcoming_appointments = [];
+$queue_appointments = [];
 $appointment_history = [];
 $medicine_list = [];
 $dispensed_medicine_list = [];
 $dispensing_residents = [];
 $file_requests = [];
+$sms_contact_list = [];
 
 try {
     $pdo = getDatabaseConnection();
     
     if ($pdo !== false) {
         ensureBhwMedicineArchiveColumn($pdo);
+
+        if (($_GET['module'] ?? '') === 'sms') {
+            try {
+                $smsContactsStmt = $pdo->query(
+                    "SELECT resident_id, full_name, contact_number
+                     FROM resident
+                     WHERE contact_number IS NOT NULL AND TRIM(contact_number) <> ''
+                     ORDER BY full_name ASC"
+                );
+                $sms_contact_list = $smsContactsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            } catch (Throwable $smsContactsError) {
+                error_log('BHW SMS CONTACT LIST ERROR: ' . $smsContactsError->getMessage());
+            }
+        }
 
         // Get total appointments (all active/upcoming appointments)
         $stmt = $pdo->query("SELECT COUNT(*) as count FROM appointment WHERE status IN ('scheduled', 'pending', 'flagged', 'approved')");
@@ -1927,6 +2055,26 @@ try {
         ");
         $stmt->execute([$today]);
         $upcoming_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Load the queue independently so the date selector can also show past dates.
+        $queueStmt = $pdo->prepare("
+            SELECT
+                a.appointment_id,
+                a.resident_id,
+                a.appointment_date,
+                a.appointment_time,
+                a.purpose,
+                a.status,
+                r.full_name AS resident_name,
+                r.contact_number
+            FROM appointment a
+            LEFT JOIN resident r ON a.resident_id = r.resident_id
+            WHERE a.appointment_date = ?
+              AND a.status IN ('scheduled', 'pending', 'flagged', 'approved', 'completed', 'no_show', 'rescheduled')
+            ORDER BY a.appointment_time ASC
+        ");
+        $queueStmt->execute([$selected_queue_date]);
+        $queue_appointments = $queueStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         $historyStmt = $pdo->query("SELECT a.appointment_id, a.resident_id, a.appointment_date, a.appointment_time, a.purpose, a.status, r.full_name AS resident_name, r.contact_number FROM appointment a LEFT JOIN resident r ON r.resident_id = a.resident_id WHERE a.status IN ('completed', 'no_show') ORDER BY a.appointment_date DESC, a.appointment_time DESC");
         $appointment_history = $historyStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -5486,13 +5634,13 @@ function isModuleActive($module) {
                         
                         <!-- Appointments Sub-Tab Navigation -->
                         <div class="flex items-center gap-1 border-b border-slate-200 px-6 py-3 overflow-x-auto bg-white mb-4 rounded-t-xl">
-                            <a href="?module=appointments&sub=today" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'today') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
+                            <a href="?module=appointments&sub=today&queue_date=<?php echo urlencode($selected_queue_date); ?>" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'today') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
                                 <i class="fas fa-calendar-check mr-1"></i>Today's Queue
                             </a>
-                            <a href="?module=appointments&sub=followup" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'followup') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
+                            <a href="?module=appointments&sub=followup&queue_date=<?php echo urlencode($selected_queue_date); ?>" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'followup') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
                                 <i class="fas fa-stethoscope mr-1"></i>Follow-up Check-up
                             </a>
-                            <a href="?module=appointments&sub=history" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'history') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
+                            <a href="?module=appointments&sub=history&queue_date=<?php echo urlencode($selected_queue_date); ?>" class="tab-button <?php echo (($_GET['sub'] ?? 'today') === 'history') ? 'active' : ''; ?>" style="font-size: 0.875rem;">
                                 <i class="fas fa-history mr-1"></i>Appointment History
                             </a>
                         </div>
@@ -5501,9 +5649,39 @@ function isModuleActive($module) {
                         <?php if (!isset($_GET['sub']) || $_GET['sub'] === 'today'): ?>
                         <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-200">
-                                <h3 class="font-heading font-bold text-slate-900 flex items-center gap-2 mb-4">
-                                    <i class="fas fa-calendar-check text-[#454B1B]"></i> Upcoming Appointments Queue
-                                </h3>
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <h3 class="font-heading font-bold text-slate-900 flex items-center gap-2">
+                                        <i class="fas fa-calendar-check text-[#454B1B]"></i> Appointments by Hour
+                                    </h3>
+                                    <form method="get" class="flex flex-wrap items-center gap-2">
+                                        <input type="hidden" name="module" value="appointments">
+                                        <input type="hidden" name="sub" value="today">
+                                        <a href="?module=appointments&sub=today&queue_date=<?php echo urlencode($previous_queue_date); ?>" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50" aria-label="Previous day" title="Previous day"><i class="fas fa-chevron-left"></i></a>
+                                        <div data-weekday-calendar data-calendar-compact="true" data-target="bhwQueueDate" data-empty-label="Choose a date" class="relative">
+                                            <input id="bhwQueueDate" type="date" name="queue_date" value="<?php echo htmlspecialchars($selected_queue_date, ENT_QUOTES, 'UTF-8'); ?>" onchange="this.form.submit()" tabindex="-1" aria-hidden="true" class="sr-only">
+                                            <button type="button" data-calendar-toggle aria-label="Choose queue date" aria-expanded="false" class="flex h-9 min-w-40 items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-700 focus:border-[#454B1B] focus:outline-none focus:ring-2 focus:ring-[#454B1B]/20">
+                                                <span data-calendar-display>Choose a date</span>
+                                                <i class="fas fa-calendar-day shrink-0 text-[#454B1B]" aria-hidden="true"></i>
+                                            </button>
+                                            <div data-calendar-popover class="absolute left-0 top-full z-30 mt-2 hidden w-full max-w-sm rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                <div class="mb-3 flex items-center justify-between gap-2">
+                                                    <button type="button" data-calendar-prev aria-label="Previous month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#454B1B] disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                                                    <p data-calendar-month class="text-sm font-bold text-slate-900 dark:text-white"></p>
+                                                    <button type="button" data-calendar-next aria-label="Next month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#454B1B] dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                                </div>
+                                                <div class="mb-1 grid grid-cols-5 gap-1 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                    <span data-calendar-weekday>Mon</span><span data-calendar-weekday>Tue</span><span data-calendar-weekday>Wed</span><span data-calendar-weekday>Thu</span><span data-calendar-weekday>Fri</span>
+                                                </div>
+                                                <div data-calendar-grid role="grid" aria-label="Queue dates" class="grid grid-cols-5 gap-1"></div>
+                                            </div>
+                                        </div>
+                                        <a href="?module=appointments&sub=today&queue_date=<?php echo urlencode($next_queue_date); ?>" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50" aria-label="Next day" title="Next day"><i class="fas fa-chevron-right"></i></a>
+                                        <?php if ($selected_queue_date !== $today): ?>
+                                            <a href="?module=appointments&sub=today" class="rounded-lg bg-[#454B1B] px-3 py-2 text-xs font-semibold text-white hover:bg-[#363b16]">Today</a>
+                                        <?php endif; ?>
+                                    </form>
+                                </div>
+                                <p class="mt-2 text-sm text-slate-500">Showing the queue for <?php echo htmlspecialchars($selected_queue_date_label, ENT_QUOTES, 'UTF-8'); ?>.</p>
                             </div>
 
                             <div class="overflow-x-auto">
@@ -5511,8 +5689,6 @@ function isModuleActive($module) {
                                     <thead class="bg-slate-50 border-b border-slate-200">
                                         <tr>
                                             <th class="px-6 py-3 text-left font-semibold text-slate-700">Resident Name</th>
-                                            <th class="px-6 py-3 text-left font-semibold text-slate-700">Date</th>
-                                            <th class="px-6 py-3 text-left font-semibold text-slate-700">Time</th>
                                             <th class="px-6 py-3 text-left font-semibold text-slate-700">Purpose</th>
                                             <th class="px-6 py-3 text-left font-semibold text-slate-700">Status</th>
                                             <th class="px-6 py-3 text-center font-semibold text-slate-700">Actions</th>
@@ -5520,35 +5696,44 @@ function isModuleActive($module) {
                                     </thead>
                                     <tbody class="divide-y divide-slate-200">
                                    <?php 
-                                        // Show ALL upcoming appointments (today and future), sorted by date
-                                        // These are appointments waiting for BHW processing or already approved
-                                        $today_apts = array_filter($upcoming_appointments, function($apt) {
+                                        // Show appointments for the selected date that are waiting for BHW processing or already approved.
+                                        $today_apts = array_filter($queue_appointments, function($apt) {
                                             $status = strtolower($apt['status']);
-                                            return in_array($status, ['scheduled', 'pending', 'approved', 'rescheduled']);
+                                            return in_array($status, ['scheduled', 'pending', 'approved', 'rescheduled'], true);
                                         });
-                                        // Show the latest scheduled appointments first.
+                                        // Keep the time groups and patients in queue order.
                                         usort($today_apts, static function ($leftAppointment, $rightAppointment) {
                                             $leftTimestamp = strtotime(($leftAppointment['appointment_date'] ?? '') . ' ' . ($leftAppointment['appointment_time'] ?? '00:00:00')) ?: 0;
                                             $rightTimestamp = strtotime(($rightAppointment['appointment_date'] ?? '') . ' ' . ($rightAppointment['appointment_time'] ?? '00:00:00')) ?: 0;
-                                            return $rightTimestamp <=> $leftTimestamp;
+                                            return $leftTimestamp <=> $rightTimestamp;
                                         });
                                         if (empty($today_apts)): 
                                         ?>
                                         <tr class="hover:bg-slate-50 transition-colors">
-                                            <td colspan="6" class="px-6 py-12 text-center">
+                                            <td colspan="4" class="px-6 py-12 text-center">
                                                 <div class="flex flex-col items-center gap-3">
                                                     <i class="fas fa-inbox text-4xl text-slate-300"></i>
-                                                    <p class="text-slate-600 font-medium">No upcoming appointments in the queue</p>
+                                                    <p class="text-slate-600 font-medium">No appointments scheduled for this date</p>
                                                     <p class="text-xs text-slate-500">Patients waiting to be processed will appear here</p>
                                                 </div>
                                             </td>
                                         </tr>
                                         <?php else: ?>
-                                        <?php foreach ($today_apts as $apt): ?>
+                                        <?php $currentHour = null; foreach ($today_apts as $apt): ?>
+                                        <?php
+                                            $appointmentTimestamp = strtotime($apt['appointment_time'] ?? '00:00:00') ?: 0;
+                                            $appointmentHour = date('H', $appointmentTimestamp);
+                                            if ($appointmentHour !== $currentHour):
+                                                $currentHour = $appointmentHour;
+                                        ?>
+                                        <tr class="bg-slate-50">
+                                            <th colspan="4" class="px-6 py-3 text-left font-bold text-slate-800">
+                                                <i class="fas fa-clock mr-2 text-[#454B1B]"></i><?php echo date('g:00 A', $appointmentTimestamp); ?>
+                                            </th>
+                                        </tr>
+                                        <?php endif; ?>
                                         <tr class="hover:bg-slate-50 transition-colors">
                                             <td class="px-6 py-4 font-medium text-slate-900"><?php echo htmlspecialchars($apt['resident_name'] ?? 'Unknown'); ?></td>
-                                            <td class="px-6 py-4 text-slate-600"><?php echo date('M d, Y', strtotime($apt['appointment_date'])); ?></td>
-                                            <td class="px-6 py-4 text-slate-600"><?php echo htmlspecialchars($apt['appointment_time'] ?? 'N/A'); ?></td>
                                             <td class="px-6 py-4 text-slate-600"><?php echo htmlspecialchars($apt['purpose'] ?? 'General Consultation'); ?></td>
                                             <td class="px-6 py-4">
                                                 <?php 
@@ -5608,10 +5793,27 @@ function isModuleActive($module) {
 
                                 <form id="rescheduleAppointmentForm" onsubmit="submitRescheduleAppointment(event)" class="p-6 space-y-5">
                                     <div class="grid gap-4 sm:grid-cols-2">
-                                        <label class="block text-sm font-medium text-slate-700">
+                                        <div class="block text-sm font-medium text-slate-700">
                                             New Date
-                                            <input id="rescheduleAppointmentDate" type="date" required class="mt-1 block w-full rounded-lg border-slate-300 px-3 py-2 shadow-sm focus:border-violet-500 focus:ring-violet-500">
-                                        </label>
+                                            <div data-weekday-calendar data-calendar-compact="true" data-target="rescheduleAppointmentDate" data-empty-label="Choose a weekday" class="relative mt-1">
+                                                <input id="rescheduleAppointmentDate" type="date" tabindex="-1" aria-hidden="true" class="sr-only">
+                                                <button type="button" data-calendar-toggle aria-label="Choose a reschedule date" aria-expanded="false" class="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+                                                    <span data-calendar-display>Choose a weekday</span>
+                                                    <i class="fas fa-calendar-day shrink-0 text-violet-600" aria-hidden="true"></i>
+                                                </button>
+                                                <div data-calendar-popover class="absolute left-0 top-full z-30 mt-2 hidden w-full max-w-sm rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                    <div class="mb-3 flex items-center justify-between gap-2">
+                                                        <button type="button" data-calendar-prev aria-label="Previous month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                                                        <p data-calendar-month class="text-sm font-bold text-slate-900 dark:text-white"></p>
+                                                        <button type="button" data-calendar-next aria-label="Next month" class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                                    </div>
+                                                    <div class="mb-1 grid grid-cols-5 gap-1 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                        <span data-calendar-weekday>Mon</span><span data-calendar-weekday>Tue</span><span data-calendar-weekday>Wed</span><span data-calendar-weekday>Thu</span><span data-calendar-weekday>Fri</span>
+                                                    </div>
+                                                    <div data-calendar-grid role="grid" aria-label="Available weekdays" class="grid grid-cols-5 gap-1"></div>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <label class="block text-sm font-medium text-slate-700">
                                             New Time
                                             <select id="rescheduleAppointmentTime" required class="mt-1 block w-full rounded-lg border-slate-300 px-3 py-2 shadow-sm focus:border-violet-500 focus:ring-violet-500">
@@ -5876,17 +6078,52 @@ function isModuleActive($module) {
                                                     <input type="radio" name="recipient_type" value="custom" onchange="toggleCustomNumbers()" class="w-4 h-4">
                                                     <span class="text-sm font-medium text-slate-700">Custom Contact List</span>
                                                 </label>
+                                                <label class="flex items-center gap-2 cursor-pointer">
+                                                    <input type="radio" name="recipient_type" value="custom_number" onchange="toggleCustomNumbers()" class="w-4 h-4">
+                                                    <span class="text-sm font-medium text-slate-700">Custom Number</span>
+                                                </label>
                                             </div>
                                         </div>
 
+                                        <div id="customNumberSection" class="hidden">
+                                            <label class="block text-sm font-semibold text-slate-700 mb-2" for="customNumber">Phone Number <span class="text-red-500">*</span></label>
+                                            <input id="customNumber" type="tel" inputmode="tel" autocomplete="tel" placeholder="0912 345 6789" class="w-full min-h-12 rounded-lg border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#454B1B]">
+                                            <p class="mt-2 text-xs text-slate-500">Accepts Philippine mobile numbers with or without +63 or 0.</p>
+                                        </div>
+
                                         <div id="customNumbersSection" class="hidden">
-                                            <label class="block text-sm font-semibold text-slate-700 mb-2">Phone Numbers <span class="text-red-500">*</span></label>
-                                            <textarea 
-                                                id="customNumbers"
-                                                placeholder="Enter phone numbers separated by commas&#10;Example: +639927174709, 09123456789, 639123456789" 
-                                                rows="3"
-                                                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#454B1B] focus:border-transparent resize-none font-mono text-sm"></textarea>
-                                            <p class="text-xs text-slate-500 mt-2">Comma-separated phone numbers (supports multiple formats)</p>
+                                            <label class="block text-sm font-semibold text-slate-700 mb-2" for="customContactDropdownToggle">Select Contacts <span class="text-red-500">*</span></label>
+                                            <div class="relative">
+                                                <button id="customContactDropdownToggle" type="button" aria-haspopup="listbox" aria-expanded="false" class="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#454B1B]">
+                                                    <span id="customContactDropdownLabel" class="truncate">Choose residents</span>
+                                                    <i class="fas fa-chevron-down shrink-0 text-xs text-slate-500" aria-hidden="true"></i>
+                                                </button>
+                                                <div id="customContactDropdownMenu" class="absolute left-0 right-0 top-full z-30 mt-2 hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+                                                    <div class="border-b border-slate-200 bg-white p-3">
+                                                        <input id="customContactSearch" type="search" autocomplete="off" placeholder="Search name or number" class="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#454B1B]">
+                                                    </div>
+                                                    <div id="customContactOptions" role="listbox" aria-label="Residents with phone numbers" aria-multiselectable="true" class="max-h-64 overflow-y-auto overscroll-contain p-2">
+                                                        <?php foreach ($sms_contact_list as $smsContact): ?>
+                                                            <?php
+                                                            $smsContactName = trim((string) ($smsContact['full_name'] ?? '')) ?: 'Resident';
+                                                            $smsContactPhone = trim((string) ($smsContact['contact_number'] ?? ''));
+                                                            ?>
+                                                            <label data-custom-contact-option data-search-text="<?php echo htmlspecialchars(strtolower($smsContactName . ' ' . $smsContactPhone), ENT_QUOTES, 'UTF-8'); ?>" class="flex min-h-12 cursor-pointer items-center gap-3 rounded-md px-3 py-2 hover:bg-slate-50">
+                                                                <input type="checkbox" class="custom-contact-checkbox h-4 w-4 shrink-0 rounded border-slate-300 accent-[#454B1B]" value="<?php echo htmlspecialchars($smsContactPhone, ENT_QUOTES, 'UTF-8'); ?>">
+                                                                <span class="min-w-0 flex-1">
+                                                                    <span class="block truncate text-sm font-medium text-slate-800"><?php echo htmlspecialchars($smsContactName, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                                    <span class="block truncate text-xs text-slate-500"><?php echo htmlspecialchars($smsContactPhone, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                                </span>
+                                                            </label>
+                                                        <?php endforeach; ?>
+                                                        <?php if (empty($sms_contact_list)): ?>
+                                                            <p class="px-3 py-4 text-sm text-slate-500">No residents with phone numbers were found.</p>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p id="customContactSelectionCount" class="mt-2 text-xs text-slate-500">No contacts selected</p>
+                                            <input type="hidden" id="customNumbers" value="">
                                         </div>
 
                                         <div>
@@ -6031,7 +6268,7 @@ function isModuleActive($module) {
                                     <a href="?module=announcements&announcement_tab=manage&announcement_state=<?php echo $stateKey; ?>" data-announcement-tab-link data-announcement-mode="manage" data-announcement-state-tab="<?php echo $stateKey; ?>" class="rounded-full border px-4 py-2 text-sm font-semibold <?php echo $announcementState === $stateKey ? 'border-[#3D4A1E] bg-[#3D4A1E] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#3D4A1E]'; ?>"><?php echo $stateLabel; ?></a>
                                 <?php endforeach; ?>
                             </div>
-                            <div class="space-y-5">
+                            <div class="max-h-[65vh] space-y-5 overflow-y-auto overscroll-contain pr-1">
                                 <?php foreach ($managedAnnouncements as $announcement): ?>
                                         <form method="POST" data-announcement-item="<?php echo htmlspecialchars($announcement['state']); ?>" class="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm" <?php echo $announcement['state'] === $announcementState ? '' : 'hidden'; ?> >
                                             <input type="hidden" name="action" value="update_announcement">
@@ -6094,7 +6331,7 @@ function isModuleActive($module) {
                 <div><h3 class="font-heading font-bold text-lg mb-4">ScanCare</h3><p class="text-slate-400 text-sm">Healthcare made simple for Barangay Gutad</p></div>
                 <div><h4 class="font-semibold mb-4">Services</h4><ul class="space-y-2 text-sm text-slate-400"><li><a href="appointments.php" class="hover:text-white transition">Appointments</a></li><li><a href="system-goals.php" class="hover:text-white transition">System Goals</a></li><li><a href="service-areas.php" class="hover:text-white transition">Service Areas</a></li></ul></div>
                 <div><h4 class="font-semibold mb-4">Legal</h4><ul class="space-y-2 text-sm text-slate-400"><li><a href="compliance.php" class="hover:text-white transition">Privacy Policy & Terms of Service</a></li></ul></div>
-                <div><h4 class="font-semibold mb-4">Contact</h4><p class="text-slate-400 text-sm">Floridablanca RHU II - GUTAD<br>Email: floridablancarhu2@gmail.com<br>Contact: 0948 056 6872</p></div>
+                <div><h4 class="font-semibold mb-4">Contact</h4><p class="text-slate-400 text-sm">Floridablanca RHU II - GUTAD<br><a href="mailto:floridablancarhu2@gmail.com" class="inline-flex items-center gap-2 hover:text-white transition"><i class="fa-solid fa-envelope w-4 text-center" aria-hidden="true"></i><span>floridablancarhu2@gmail.com</span></a><br><a href="tel:09480566872" class="inline-flex items-center gap-2 hover:text-white transition"><i class="fa-solid fa-phone w-4 text-center" aria-hidden="true"></i><span>0948 056 6872</span></a><br><a href="https://www.facebook.com/share/1DRzKzHcYD/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 hover:text-white transition" aria-label="ScanCare on Facebook"><i class="fa-brands fa-facebook-f w-4 text-center" aria-hidden="true"></i><span>RHU II - Gutad</span></a></p></div>
             </div>
             <div class="border-t border-slate-800 pt-8 text-center text-slate-400 text-sm"><p>&copy; 2026 ScanCare. All rights reserved. Your data is encrypted and secure.</p></div>
         </div>
@@ -8190,25 +8427,124 @@ function isModuleActive($module) {
 
         function toggleCustomNumbers() {
             const recipientType = document.querySelector('input[name="recipient_type"]:checked').value;
+            const customNumberSection = document.getElementById('customNumberSection');
             const customNumbersSection = document.getElementById('customNumbersSection');
-            
-            if (recipientType === 'custom') {
-                customNumbersSection.classList.remove('hidden');
-            } else {
-                customNumbersSection.classList.add('hidden');
+            const dropdownMenu = document.getElementById('customContactDropdownMenu');
+            const dropdownButton = document.getElementById('customContactDropdownToggle');
+
+            customNumberSection?.classList.toggle('hidden', recipientType !== 'custom_number');
+            customNumbersSection?.classList.toggle('hidden', recipientType !== 'custom');
+
+            if (recipientType !== 'custom') {
+                dropdownMenu?.classList.add('hidden');
+                dropdownButton?.setAttribute('aria-expanded', 'false');
             }
+
+            if (recipientType === 'custom_number') {
+                document.getElementById('customNumber')?.focus();
+            }
+        }
+
+        function updateCustomContactSelection() {
+            const selectedContacts = Array.from(document.querySelectorAll('.custom-contact-checkbox:checked'));
+            const numbersField = document.getElementById('customNumbers');
+            const dropdownLabel = document.getElementById('customContactDropdownLabel');
+            const selectionCount = document.getElementById('customContactSelectionCount');
+            const selectedNumbers = selectedContacts.map(contact => contact.value).filter(Boolean);
+
+            if (numbersField) numbersField.value = selectedNumbers.join(',');
+            if (dropdownLabel) dropdownLabel.textContent = selectedNumbers.length
+                ? `${selectedNumbers.length} contact${selectedNumbers.length === 1 ? '' : 's'} selected`
+                : 'Choose residents';
+            if (selectionCount) selectionCount.textContent = selectedNumbers.length
+                ? `${selectedNumbers.length} contact${selectedNumbers.length === 1 ? '' : 's'} selected`
+                : 'No contacts selected';
+        }
+
+        function initializeCustomContactDropdown() {
+            const dropdownButton = document.getElementById('customContactDropdownToggle');
+            const dropdownMenu = document.getElementById('customContactDropdownMenu');
+            const searchInput = document.getElementById('customContactSearch');
+            if (!dropdownButton || !dropdownMenu) return;
+
+            dropdownButton.addEventListener('click', function () {
+                const isOpening = dropdownMenu.classList.contains('hidden');
+                dropdownMenu.classList.toggle('hidden', !isOpening);
+                dropdownButton.setAttribute('aria-expanded', String(isOpening));
+                if (isOpening) searchInput?.focus();
+            });
+
+            document.querySelectorAll('.custom-contact-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateCustomContactSelection);
+            });
+
+            searchInput?.addEventListener('input', function () {
+                const query = this.value.trim().toLowerCase();
+                document.querySelectorAll('[data-custom-contact-option]').forEach(option => {
+                    option.classList.toggle('hidden', !option.dataset.searchText.includes(query));
+                });
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!dropdownButton.parentElement.contains(event.target)) {
+                    dropdownMenu.classList.add('hidden');
+                    dropdownButton.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && !dropdownMenu.classList.contains('hidden')) {
+                    dropdownMenu.classList.add('hidden');
+                    dropdownButton.setAttribute('aria-expanded', 'false');
+                    dropdownButton.focus();
+                }
+            });
+
+            updateCustomContactSelection();
+        }
+
+        initializeCustomContactDropdown();
+
+        function resetSMSForm() {
+            document.getElementById('smsForm')?.reset();
+            const searchInput = document.getElementById('customContactSearch');
+            const dropdownMenu = document.getElementById('customContactDropdownMenu');
+            const dropdownButton = document.getElementById('customContactDropdownToggle');
+            if (searchInput) searchInput.value = '';
+            document.querySelectorAll('[data-custom-contact-option]').forEach(option => option.classList.remove('hidden'));
+            dropdownMenu?.classList.add('hidden');
+            dropdownButton?.setAttribute('aria-expanded', 'false');
+            toggleCustomNumbers();
+            updateCustomContactSelection();
+            document.getElementById('charCount').textContent = '0';
+            document.getElementById('smsPreview').textContent = 'Your message will appear here...';
         }
 
         function handleSMSSubmit(event) {
             event.preventDefault();
 
             if (!navigator.onLine) {
-                const recipientType = document.querySelector('input[name="recipient_type"]:checked')?.value || 'all';
+                const selectedRecipientType = document.querySelector('input[name="recipient_type"]:checked')?.value || 'all';
                 const messageText = document.getElementById('smsContent').value.trim();
-                const customNumbers = document.getElementById('customNumbers')?.value || '';
+                const customNumbers = selectedRecipientType === 'custom_number'
+                    ? document.getElementById('customNumber')?.value.trim() || ''
+                    : document.getElementById('customNumbers')?.value || '';
+                const recipientType = selectedRecipientType === 'custom_number' ? 'custom' : selectedRecipientType;
 
                 if (!messageText) {
                     alert('Please enter a message');
+                    return;
+                }
+
+                if (recipientType === 'custom' && selectedRecipientType === 'custom_number' && !/^\+?63\d{10}$|^09\d{9}$/.test(customNumbers.replace(/\s|-/g, ''))) {
+                    alert('Please enter a valid Philippine mobile number.');
+                    document.getElementById('customNumber')?.focus();
+                    return;
+                }
+
+                if (recipientType === 'custom' && selectedRecipientType === 'custom' && !customNumbers) {
+                    alert('Please select at least one contact.');
+                    document.getElementById('customContactDropdownToggle')?.focus();
                     return;
                 }
 
@@ -8221,21 +8557,34 @@ function isModuleActive($module) {
                     });
                 }
 
-                document.getElementById('smsForm').reset();
-                document.getElementById('charCount').textContent = '0';
-                document.getElementById('smsPreview').textContent = 'Your message will appear here...';
+                resetSMSForm();
                 alert('📶 SMS queued offline. It will be sent automatically once the connection is restored.');
                 return;
             }
             
             // Get form data
-            const recipientType = document.querySelector('input[name="recipient_type"]:checked').value;
+            const selectedRecipientType = document.querySelector('input[name="recipient_type"]:checked').value;
             const messageText = document.getElementById('smsContent').value.trim();
-            const customNumbers = document.getElementById('customNumbers')?.value || '';
+            const customNumbers = selectedRecipientType === 'custom_number'
+                ? document.getElementById('customNumber')?.value.trim() || ''
+                : document.getElementById('customNumbers')?.value || '';
+            const recipientType = selectedRecipientType === 'custom_number' ? 'custom' : selectedRecipientType;
             
             // Validate message
             if (!messageText) {
                 alert('Please enter a message');
+                return;
+            }
+
+            if (recipientType === 'custom' && selectedRecipientType === 'custom_number' && !/^\+?63\d{10}$|^09\d{9}$/.test(customNumbers.replace(/\s|-/g, ''))) {
+                alert('Please enter a valid Philippine mobile number.');
+                document.getElementById('customNumber')?.focus();
+                return;
+            }
+
+            if (recipientType === 'custom' && selectedRecipientType === 'custom' && !customNumbers) {
+                alert('Please select at least one contact.');
+                document.getElementById('customContactDropdownToggle')?.focus();
                 return;
             }
             
@@ -8291,9 +8640,7 @@ function isModuleActive($module) {
                     alert(`✅ SMS sent successfully!\n\nSent: ${data.sent}\nFailed: ${data.failed}\nTotal Recipients: ${data.total}`);
                     
                     // Clear form
-                    document.getElementById('smsForm').reset();
-                    document.getElementById('charCount').textContent = '0';
-                    document.getElementById('smsPreview').textContent = 'Your message will appear here...';
+                    resetSMSForm();
                 } else {
                     alert(`❌ SMS sending failed:\n${data.message}`);
                 }
@@ -8720,6 +9067,8 @@ function isModuleActive($module) {
             dateInput.value = '';
             const currentDate = new Date();
             dateInput.min = [currentDate.getFullYear(), String(currentDate.getMonth() + 1).padStart(2, '0'), String(currentDate.getDate()).padStart(2, '0')].join('-');
+            const lastAllowedDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
+            dateInput.max = [lastAllowedDate.getFullYear(), String(lastAllowedDate.getMonth() + 1).padStart(2, '0'), String(lastAllowedDate.getDate()).padStart(2, '0')].join('-');
             document.getElementById('rescheduleAppointmentTime').value = '';
             document.getElementById('appointmentScheduleModalTitle').textContent = mode === 'followup'
                 ? 'Schedule Follow-up Check-up'
@@ -10100,5 +10449,7 @@ function isModuleActive($module) {
         window.addEventListener('resize', compactMedicineOptions);
     </script>
 
+    <script src="weekday-calendar.js?v=8"></script>
+    <script src="account-session-monitor.js?v=1"></script>
 </body>
 </html>

@@ -68,10 +68,25 @@ try {
     $last_name = trim($_POST['last_name'] ?? '');
     $phone_number = trim($_POST['phone_number'] ?? '');
     $user_role = $_POST['user_role'] ?? 'resident';
+    $response['old_input'] = [
+        'email' => $email,
+        'first_name' => $first_name,
+        'middle_initial' => $middle_initial,
+        'last_name' => $last_name,
+        'phone_number' => $phone_number,
+        'user_role' => $user_role
+    ];
     
     
     if (empty($email) || empty($password) || empty($first_name) || empty($last_name)) {
         throw new Exception('Email, password, first name, and last name are required');
+    }
+
+    $namePattern = '/^\p{L}+(?:\s+\p{L}+)*$/u';
+    if (preg_match($namePattern, $first_name) !== 1
+        || preg_match($namePattern, $last_name) !== 1
+        || ($middle_initial !== '' && preg_match($namePattern, $middle_initial) !== 1)) {
+        throw new Exception('Names may contain letters and spaces only.');
     }
     
     
@@ -86,8 +101,12 @@ try {
     }
     
     
-    if (strlen($password) < 6) {
-        throw new Exception('Password must be at least 6 characters');
+    if (strlen($password) < 6
+        || preg_match('/[A-Z]/', $password) !== 1
+        || preg_match('/[a-z]/', $password) !== 1
+        || preg_match('/[0-9]/', $password) !== 1
+        || preg_match('/[^A-Za-z0-9\s]/', $password) !== 1) {
+        throw new Exception('Password must be at least 6 characters and include an uppercase letter, a lowercase letter, a number, and a special character.');
     }
     
     

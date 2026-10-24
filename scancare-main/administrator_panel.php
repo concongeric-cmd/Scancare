@@ -45,6 +45,8 @@ if (!$is_authenticated) {
     exit;
 }
 
+requireCurrentSessionAccount('admin_login.php');
+
 
 $_SESSION['last_activity'] = time();
 
@@ -3455,6 +3457,7 @@ function isActiveSection($section) {
 
     <!-- Login Approval Notification System -->
                     <script src="<?php echo htmlspecialchars(appPath('login-notification-system.js'), ENT_QUOTES, 'UTF-8'); ?>?v=13"></script>
+    <script src="account-session-monitor.js?v=1"></script>
 
 </body>
 </html>

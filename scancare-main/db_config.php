@@ -48,6 +48,75 @@ function getDatabaseConnection() {
     }
 }
 
+/**
+ * Checks that the account stored in the current PHP session still exists and
+ * remains active. This prevents a deleted or deactivated account from using a
+ * session that was created before the account changed.
+ */
+function isCurrentSessionAccountActive(?PDO $pdo = null): bool {
+    $userType = strtolower((string) ($_SESSION['user_type'] ?? ''));
+    $accountMap = [
+        'resident' => ['table' => 'resident', 'id_column' => 'resident_id', 'session_key' => 'resident_id'],
+        'health_worker' => ['table' => 'health_worker', 'id_column' => 'worker_id', 'session_key' => 'worker_id'],
+        'admin' => ['table' => 'system_admins', 'id_column' => 'admin_id', 'session_key' => 'admin_id'],
+    ];
+
+    if (!isset($accountMap[$userType])) {
+        return false;
+    }
+
+    $account = $accountMap[$userType];
+    $accountId = (int) ($_SESSION[$account['session_key']] ?? $_SESSION['user_id'] ?? 0);
+    if ($accountId <= 0) {
+        return false;
+    }
+
+    try {
+        $pdo = $pdo ?: getDatabaseConnection();
+        // Do not log a valid user out merely because the database is temporarily unavailable.
+        if ($pdo === false) {
+            return true;
+        }
+
+        $conditions = ["{$account['id_column']} = ?"];
+        if (hasTableColumn($pdo, $account['table'], 'is_active')) {
+            $conditions[] = 'is_active = 1';
+        }
+        if (hasTableColumn($pdo, $account['table'], 'deleted_at')) {
+            $conditions[] = 'deleted_at IS NULL';
+        }
+        if ($userType === 'health_worker' && hasTableColumn($pdo, 'health_worker', 'approval_status')) {
+            $conditions[] = "LOWER(COALESCE(approval_status, '')) = 'approved'";
+        }
+
+        $statement = $pdo->prepare(
+            "SELECT 1 FROM {$account['table']} WHERE " . implode(' AND ', $conditions) . ' LIMIT 1'
+        );
+        $statement->execute([$accountId]);
+        return (bool) $statement->fetchColumn();
+    } catch (Throwable $error) {
+        error_log('Session account validation failed: ' . $error->getMessage());
+        return true;
+    }
+}
+
+function invalidateCurrentSession(): void {
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
+}
+
+function requireCurrentSessionAccount(string $redirect = 'login.php'): void {
+    if (isCurrentSessionAccountActive()) {
+        return;
+    }
+
+    invalidateCurrentSession();
+    header('Location: ' . $redirect . '?account_removed=1');
+    exit;
+}
+
 
 function hasTableColumn(PDO $pdo, $table, $column) {
     try {
