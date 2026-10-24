@@ -624,7 +624,8 @@ try {
                 COALESCE(dosage, '') AS dosage
             FROM medicine
             WHERE COALESCE(is_deleted, 0) = 0
-            ORDER BY (available > 0) DESC, name ASC
+              AND available > 0
+            ORDER BY name ASC
             LIMIT 50
         ";
         
@@ -1062,11 +1063,7 @@ if ($isFormSubmission) {
                                 $badgeIcon = 'fa-check-circle';
                                 $dosageValue = trim((string)($medicine['dosage'] ?? ''));
                                 
-                                if ((int) $medicine['stock_quantity'] <= 0) {
-                                    $stockStatus = 'Out of Stock';
-                                    $badgeClass = 'bg-red-100 text-red-800';
-                                    $badgeIcon = 'fa-times-circle';
-                                } elseif ($medicine['stock_quantity'] <= $lowStockThreshold) {
+                                if ((int) $medicine['stock_quantity'] <= $lowStockThreshold) {
                                     $stockStatus = 'Low Stock';
                                     $badgeClass = 'bg-amber-100 text-amber-800';
                                     $badgeIcon = 'fa-exclamation-circle';
